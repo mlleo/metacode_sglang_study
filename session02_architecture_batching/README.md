@@ -11,15 +11,14 @@
 - [ ] closed-loop / open-loop 부하의 차이, Little's law, SLO·goodput을 설명할 수 있다
 - [ ] `sglang.benchmark.serving`으로 sweep을 돌리고 latency-throughput 곡선을 해석할 수 있다
 
-## 타임테이블 (160분)
+## 타임테이블 (120분)
 
 | 시간 | 순서 | 자료 |
 |---|---|---|
-| 0:00–0:25 | **Session 1 과제 발표** (2–3명) — 주제: "SGLang이 HF보다 빠른 이유" 가설 | [../session01_fundamentals/assignment.md](../session01_fundamentals/assignment.md) |
-| 0:25–1:15 | **이론** §0–§6 | [lecture.md](lecture.md) |
-| 1:15–1:25 | 휴식 — Pod Deploy + setup + `launch.sh baseline` | |
-| 1:25–2:30 | **실습** 1–6 | [lab.md](lab.md) |
-| 2:30–2:40 | **과제 안내** | [assignment.md](assignment.md) |
+| 0:00–0:15 | **Session 1 과제 발표** (2명) — "SGLang이 HF보다 빠른 이유" 가설 | |
+| 0:15–0:55 | **이론** — ★ 절 (§0–§6). 📖 절은 복습 자료 (발표 시작 전에 Pod Deploy + setup을 걸어 두면 이론 중에 설치가 끝남) | [lecture.md](lecture.md) |
+| 0:55–1:50 | **실습** — 실습 2·3·4·6 (1, 5는 선택/과제) | [lab.md](lab.md) |
+| 1:50–2:00 | **과제 안내** | [assignment.md](assignment.md) |
 
 ## 발표 진행 팁 (강사)
 

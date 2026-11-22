@@ -110,7 +110,10 @@ grep -n "def get_next_batch_to_run" managers/scheduler.py
 | 모델 정의 | `srt/models/qwen3.py` | `Qwen3Attention` → `RadixAttention` 호출부 |
 | attention 진입 | `srt/layers/radix_attention.py` | `RadixAttention.forward` (얇은 shim: backend로 위임) |
 | backend 계약 | `srt/layers/attention/base_attn_backend.py` | `AttentionBackend.init_forward_metadata`, `forward` → `forward_extend` / `forward_decode` |
-| backend 구현 | `srt/layers/attention/flashinfer_backend.py`, `triton_backend.py` | 각 클래스의 `forward_extend`, `forward_decode` |
+| backend 구현 | `srt/layers/attention/flashinfer_backend.py`, `triton_backend.py` | 각 클래스의 `forward_extend`, `forward_decode`, `_fill_kv_indptr_and_indices`(CSR) |
+| Triton 커널 본체 | `kernels/ops/attention/decode_attention.py`, `extend_attention.py` | 공부용으로 읽기 좋은 attention 커널 |
+| prefill logits 위치 | `srt/layers/logits_processor.py` | `_get_pruned_states` (`last_index = cumsum(extend_seq_lens) - 1`) |
+| chunked prefill + mixed | `srt/managers/scheduler.py` | `_get_new_batch_prefill_raw` (`add_chunked_req`, `mix_with_running`), `_should_defer_prefill` (`--prefill-decode-interval`) |
 | logits & sampling | `srt/layers/logits_processor.py`, `srt/layers/sampler.py` | `LogitsProcessor.forward`, `Sampler.forward` |
 | 실행 관련 플래그 | `srt/arg_groups/fields/exec_.py` | `attention_backend`, `cuda_graph_backend_decode`, `disable_decode_cuda_graph`, `enable_torch_compile` |
 | speculative decoding | `srt/speculative/`, `srt/arg_groups/fields/spec.py` | `speculative_algorithm` (EAGLE, EAGLE3, NGRAM, ...) |

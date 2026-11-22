@@ -1,6 +1,7 @@
 # Session 3 실습 — KV pool 실측과 RadixAttention 관찰
+> **2시간 수업 기준:** 필수 0(로컬)·1·2·3·6 / 선택 4, 5 (5는 서버를 두 번 띄워 6–8분 → 강사 시연 추천)
 
-> 65분 / GPU 예산 약 $0.8 / 결과물: `results/s03_*.csv|jsonl`, `logs/server_*.log`
+> 실습 55분 (2시간 수업 기준) / GPU 예산 약 $0.8 / 결과물: `results/s03_*.csv|jsonl`, `logs/server_*.log`
 
 | # | 실습 | 시간 | GPU |
 |---|---|---|---|

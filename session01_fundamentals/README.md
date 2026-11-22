@@ -13,15 +13,14 @@
 - [ ] TTFT / ITL / TPOT / E2E / throughput 정의와 측정 위치
 - [ ] SGLang 서버를 띄우고 native API와 OpenAI 호환 API로 요청을 보내는 법
 
-## 타임테이블 (160분)
+## 타임테이블 (120분)
 
 | 시간 | 순서 | 자료 |
 |---|---|---|
-| 0:00–0:25 | **오리엔테이션** (발표 대신): 스터디 목표·원칙·진행 방식·예산 규칙, RunPod 계정/크레딧 확인 | [../README.md](../README.md), [../docs/runpod_guide.md](../docs/runpod_guide.md) |
-| 0:25–1:15 | **이론** §1–§7 | [lecture.md](lecture.md) |
-| 1:15–1:25 | 휴식 — **이때 Pod Deploy + `setup_pod.sh` 시작** | [lab.md §0](lab.md#0-pod-준비-휴식-시간에) |
-| 1:25–2:30 | **실습** 1–5 | [lab.md](lab.md) |
-| 2:30–2:40 | **과제 안내** | [assignment.md](assignment.md) |
+| 0:00–0:15 | **오리엔테이션** (발표 대신): 스터디 목표·원칙·예산 규칙, RunPod 계정 확인 → **바로 Pod Deploy + `setup_pod.sh` 시작** | |
+| 0:15–0:55 | **이론** — §1 → §3 → §4 → §5 → §7 → §8 (★ 절). 📖 절은 복습 자료 (발표 시작 전에 Pod Deploy + setup을 걸어 두면 이론 중에 설치가 끝남) | [lecture.md](lecture.md) |
+| 0:55–1:50 | **실습** — 실습 0·1·3·4·5 (2는 과제로) | [lab.md](lab.md) |
+| 1:50–2:00 | **과제 안내** | [assignment.md](assignment.md) |
 
 ## 사전 준비 (수강생, 수업 전 집에서)
 

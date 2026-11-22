@@ -1,10 +1,11 @@
 # Session 2 실습 — 서버 내부를 들여다보고, 부하를 걸어 곡선을 그린다
+> **2시간 수업 기준:** 필수 2·3·4·6 / 선택 1(py-spy), 5(open-loop — 과제나 강사 시연)
 
-> 65분 / GPU 예산 약 $0.8 / 결과물: `results/s02_*.jsonl|csv|json`, `logs/server_baseline.log`
+> 실습 55분 (2시간 수업 기준) / GPU 예산 약 $0.8 / 결과물: `results/s02_*.jsonl|csv|json`, `logs/server_baseline.log`
 
 | # | 실습 | 시간 |
 |---|---|---|
-| 0 | Pod 준비 + 서버 시작 | 휴식 시간 |
+| 0 | Pod 준비 + 서버 시작 | 수업 시작 시 (발표 중) |
 | 1 | 프로세스 구조와 스케줄러 스택 엿보기 | 8분 |
 | 2 | 요청 하나를 로그로 추적 | 7분 |
 | 3 | Continuous batching 타임라인 | 10분 |

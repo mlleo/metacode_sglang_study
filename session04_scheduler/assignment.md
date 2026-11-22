@@ -25,22 +25,23 @@
 
 수업의 `interference.py`를 이용해 **chunk 크기 × 가해자 길이** 표를 채웁니다. 피해자는 16명 고정.
 
-| 가해자 입력 \ 설정 | nochunk | 4096 | 2048 | 1024 | 1024 + mixed |
-|---|---|---|---|---|---|
-| 8000 | | | | | |
-| 16000 | | | | | |
+| 가해자 입력 \ 설정 | nochunk | 4096 | 1024 | 4096 + mixed | 1024 + mixed | 1024 + interval 1 |
+|---|---|---|---|---|---|---|
+| 8000 | | | | | | |
+| 16000 | | | | | | |
 
 각 칸에 `victim_itl_ms_p99` / `aggressor_ttft_ms_mean` 두 값을 적으세요.
 
 ```bash
-# 예: chunk 2048, 가해자 8000
-bash common/launch.sh c2048 --chunked-prefill-size 2048
-python session04_scheduler/code/interference.py --aggressor-in 8000  --tag c2048_a8k  --out results/s04_hw.csv
-python session04_scheduler/code/interference.py --aggressor-in 16000 --tag c2048_a16k --out results/s04_hw.csv
+# 예: chunk 4096 + mixed, 가해자 8000 / 16000
+bash common/launch.sh c4096mx --enable-mixed-chunk
+python session04_scheduler/code/interference.py --aggressor-in 8000  --tag c4096mx_a8k  --out results/s04_hw.csv
+python session04_scheduler/code/interference.py --aggressor-in 16000 --tag c4096mx_a16k --out results/s04_hw.csv
 bash common/stop.sh
 ```
 
-> 예산 팁: 서버 하나 띄울 때마다 두 길이를 모두 돌리세요 (서버 시작이 가장 비싼 부분입니다). 총 5번 launch.
+> 예산 팁: 서버 하나 띄울 때마다 두 길이를 모두 돌리세요 (서버 시작이 가장 비싼 부분입니다). 총 6번 launch.
+> 수업에서 이미 돌린 16000 결과는 재사용해도 됩니다.
 
 ## Part C. 분석
 
@@ -48,13 +49,15 @@ bash common/stop.sh
    SLO(p99 ITL ≤ 100 ms) 선을 그리고, SLO를 만족하는 설정 중 가해자 TTFT가 가장 짧은 것을 고르세요.
 2. **그래프 2**: 설정 하나를 골라 `plot_timeline.py`로 ITL 타임라인. 스파이크 하나를 확대해 "이 스파이크의 높이 ≈ chunk 하나의 prefill 시간"인지 확인하세요.
    (chunk 하나의 prefill 시간은 Session 1 과제의 TTFT vs 입력 길이 데이터로 추정 가능)
-3. 16K 가해자에서 chunk 1024의 **가해자 TTFT가 nochunk보다 얼마나 늘었는지**, 그 이유를 두 가지 대세요.
-   (힌트: ① 조각 사이에 decode step이 끼어든다 ② 뒤쪽 조각일수록 attention이 앞 조각들의 KV를 모두 읽는다)
+3. 16K 가해자에서 `1024 + mixed`와 `1024 + interval 1`의 **가해자 TTFT가 nochunk보다 얼마나 늘었는지**, 그 이유를 두 가지 대세요.
+   (힌트: ① 조각 사이에 decode가 끼어든다 ② 뒤쪽 조각일수록 attention이 앞 조각들의 KV를 모두 읽는다)
+   그리고 chunk 크기만 바꾼 열(nochunk / 4096 / 1024)에서 피해자 p99 ITL이 거의 안 변했다면, 이론 §4.3과 연결해 설명하세요.
 4. 팀장에게 추천할 설정과 근거 3문장.
 
 ## Part D. 코드 리딩 (GPU 불필요)
 
-1. `managers/schedule_policy.py`의 `PrefillAdder.add_one_req`에서 `NO_TOKEN`을 반환하는 경로를 하나 찾아, 어떤 조건에서 그런지 코드 인용과 함께 설명하세요.
+1. `managers/schedule_policy.py`의 `PrefillAdder._select_prefill_admission`에서 `NO_TOKEN`을 반환하는 경로를 찾아, 어떤 조건에서 그런지 코드 인용과 함께 설명하세요.
+   그리고 `managers/scheduler.py`의 `get_next_batch_to_run` / `_should_defer_prefill`을 읽고, `chunked_req`가 남아 있을 때 decode가 언제 실행되는지 설명하세요.
 2. `_get_running_request_total_token_offset`을 읽고, `ignore_eos`가 왜 다르게 취급되는지 자기 말로 설명하세요.
 3. `managers/schedule_batch.py`의 `_get_decode_retraction_order`가 정렬하는 키를 쓰고, "생성을 많이 한 요청을 쫓아내면 안 되는 이유"를 설명하세요.
 

@@ -1,11 +1,12 @@
 # Session 5 실습 — step 시간을 분해하고, 하나씩 줄여 보기
+> **2시간 수업 기준:** 필수 1·2·4·6 / 선택 3, 5 (과제 주제로 연결)
 
-> 65분 / GPU 예산 약 $1.0 / 결과물: `results/s05_*.jsonl|csv|txt`
+> 실습 55분 (2시간 수업 기준) / GPU 예산 약 $1.0 / 결과물: `results/s05_*.jsonl|csv|txt`
 > 모델 로딩이 여러 번 일어납니다. 각 단계는 스크립트가 알아서 띄우고 끕니다.
 
 | # | 실습 | 시간 |
 |---|---|---|
-| 0 | 준비 + 코드 읽기 (ForwardBatch 찍어 보기) | 휴식 시간 + 5분 |
+| 0 | 준비 + 코드 읽기 (ForwardBatch 찍어 보기) | 수업 시작 시 + 5분 |
 | 1 | `one_batch`: batch별 decode step과 roofline ⭐ | 12분 |
 | 2 | CUDA graph ON/OFF ⭐ | 10분 |
 | 3 | Attention backend: flashinfer vs triton | 8분 |
@@ -86,7 +87,7 @@ python session05_execution/code/onebatch_to_csv.py results/s05_onebatch.jsonl
 
 - prefill latency와 decode latency 중 어느 쪽 차이가 더 큰가요?
 - (긴 context에서 차이가 커질 수 있습니다. 시간이 남으면 `IN=4096 BS="1 16" bash session05_execution/code/onebatch_sweep.sh triton4k --attention-backend triton`와 base 4k를 비교)
-- Triton backend 코드는 읽기 쉽습니다. `$SG/srt/layers/attention/triton_backend.py`의 `forward_decode`에서 `req_to_token`(또는 그것을 가리키는 metadata)이 어떻게 커널에 넘어가는지 찾아보세요.
+- Triton backend 코드는 읽기 쉽습니다. `$SG/srt/layers/attention/triton_backend.py`의 `_fill_kv_indptr_and_indices`와 `forward_decode`에서 `kv_indptr`/`kv_indices`(이론 §2.2의 CSR)가 어떻게 만들어져 커널(`$SG/kernels/ops/attention/decode_attention.py`)로 넘어가는지 찾아보세요.
 
 ---
 

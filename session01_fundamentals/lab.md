@@ -1,10 +1,11 @@
 # Session 1 실습 — 직접 짠 decode loop, 그리고 첫 SGLang 서버
+> **2시간 수업 기준:** 필수 0·1·3·4·5 / 선택 2 (HF `generate()` 기준선은 과제 Part C에서 해도 됨)
 
-> 65분 / GPU 예산 약 $0.9 / 결과물: `results/s01_*.csv`, `logs/server_baseline.log`, `logs/env.txt`
+> 실습 55분 (2시간 수업 기준) / GPU 예산 약 $0.9 / 결과물: `results/s01_*.csv`, `logs/server_baseline.log`, `logs/env.txt`
 
 | # | 실습 | 시간 | 핵심 관찰 |
 |---|---|---|---|
-| 0 | Pod 준비 (휴식 시간에) | 10분 | driver ≥ 580, SGLang 0.5.23 |
+| 0 | Pod 준비 (수업 시작할 때) | 10분 | driver ≥ 580, SGLang 0.5.23 |
 | 1 | 직접 짠 decode loop | 15분 | prefill ∝ 입력 길이, decode step은 거의 일정, batch를 키워도 step 시간은 조금만 증가 |
 | 2 | HF `generate()` 기준선 | 8분 | batch별 throughput / E2E |
 | 3 | 첫 SGLang 서버 | 12분 | 시작 로그 읽기, native / streaming / OpenAI API |
@@ -13,7 +14,7 @@
 
 ---
 
-## 0. Pod 준비 (휴식 시간에)
+## 0. Pod 준비 (수업 시작할 때)
 
 [docs/runpod_guide.md](../docs/runpod_guide.md) 순서대로: RTX 4090 · **CUDA 13.0+ 필터** · Container Disk 40 GB.
 
