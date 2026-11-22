@@ -106,7 +106,7 @@ BF16(2 bytes)이면 weight는 **약 3.44 GB**. 이 숫자가 이 스터디 내�
   print(len(tok.encode("프랑스의 수도는 파리입니다.")))
   ```
 - **토크나이저는 CPU에서 돈다.** 서빙 엔진은 이 일을 GPU를 돌리는 프로세스와 분리합니다 (Session 2).
-- **detokenize도 간단하지 않다.** byte-level BPE에서는 한글 한 글자(UTF-8 3 bytes)가 token 두 개에 걸쳐 쪼개질 수 있습니다. token 하나만 보고 텍스트로 바꾸면 깨진 글자(`�`)가 나옵니다. 그래서 스트리밍 서버는 "글자가 완성될 때까지 기다렸다가" 내보냅니다 (Session 2 §2.6).
+- **detokenize도 간단하지 않다.** byte-level BPE에서는 한글 한 글자(UTF-8 3 bytes)가 token 두 개에 걸쳐 쪼개질 수 있습니다. token 하나만 보고 텍스트로 바꾸면 깨진 글자(`�`)가 나옵니다. 그래서 스트리밍 서버는 "글자가 완성될 때까지 기다렸다가" 내보냅니다 (Session 2 §2.5).
 - 같은 텍스트 → 같은 token 시퀀스지만, **token 시퀀스 → 텍스트 → 다시 token**은 원래와 다를 수 있습니다. 이게 Session 3 멀티턴 캐시 문제의 원인이 됩니다.
 
 ---
@@ -374,7 +374,7 @@ HF eager 구현이 이론 하한보다 몇 배 느린 주된 이유가 이것이
 ### 6.3 EOS와 stop
 
 모델이 EOS token(Qwen3: `<|im_end|>` 등)을 내거나, 사용자가 지정한 stop 문자열이 나오거나, `max_new_tokens`에 도달하면 끝납니다.
-서빙 엔진은 매 step **요청마다** 이 조건을 검사합니다 (SGLang: `Req.check_finished` 계열) — 그래서 batch 안의 요청들이 제각각 끝나고, 이게 continuous batching이 필요한 이유입니다.
+서빙 엔진은 매 step **요청마다** 이 조건을 검사합니다 (SGLang: `Req.update_finish_state`) — 그래서 batch 안의 요청들이 제각각 끝나고, 이게 continuous batching이 필요한 이유입니다.
 
 ---
 

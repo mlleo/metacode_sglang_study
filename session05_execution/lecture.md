@@ -173,6 +173,7 @@ self.kv_index_translator.pack_read_stream(          # req_to_token[req_pool_indi
 | 대표 기법 | FlashAttention (타일링 + online softmax) | Flash-decoding (split-KV: 긴 KV를 여러 블록으로 나눠 병렬로 읽고 합침) |
 
 **split-KV가 왜 필요한가 (📖):** batch=1, context 32K decode에서 요청 하나 × head 몇 개만으로는 GPU의 SM(4090: 128개)을 다 못 씁니다. 그래서 KV를 여러 조각으로 나눠 여러 SM이 나눠 읽고 마지막에 softmax를 합칩니다 (`merge_state`). 긴 context·작은 batch에서 decode attention 속도를 좌우합니다.
+Triton backend의 decode 커널도 이 구조입니다: `_fwd_kernel_stage1`(KV 조각별 부분 결과) → `_fwd_kernel_stage2`(조각 결과 합치기) (`python/sglang/kernels/ops/attention/decode_attention.py`).
 
 ### 2.4 FlashInfer의 plan / run (📖)
 

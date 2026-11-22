@@ -36,12 +36,16 @@ if [ "$INSTALLED" = "$SGLANG_VERSION" ]; then
   echo "sglang ${INSTALLED} 이미 설치됨 → 건너뜀"
 else
   echo "sglang ${INSTALLED} → ${SGLANG_VERSION} 설치 (수 분 소요)"
-  python3 -m pip install -q --upgrade pip uv
-  python3 -m uv pip install --system --prerelease=allow "sglang==${SGLANG_VERSION}"
+  # 시스템 Python이 'externally managed'(PEP 668)로 막혀 있는 이미지도 있어서 --break-system-packages를 함께 준다.
+  # (Pod은 일회용 컨테이너이므로 시스템 Python에 설치해도 괜찮다)
+  python3 -m pip install -q --upgrade pip uv 2>/dev/null \
+    || python3 -m pip install -q --break-system-packages --upgrade pip uv
+  python3 -m uv pip install --system --break-system-packages --prerelease=allow "sglang==${SGLANG_VERSION}"
 fi
 
 echo "== 3) 실습 도구 설치 =="
-python3 -m pip install -q matplotlib pandas requests
+python3 -m pip install -q matplotlib pandas requests 2>/dev/null \
+  || python3 -m pip install -q --break-system-packages matplotlib pandas requests
 
 echo "== 4) 모델 다운로드: ${MODEL} =="
 python3 - <<PY

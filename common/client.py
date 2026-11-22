@@ -158,10 +158,24 @@ def generate(
     }
 
 
-def flush_cache(url: str = DEFAULT_URL) -> bool:
-    """radix cache를 비운다. 실행 중인 요청이 있으면 서버가 거절할 수 있다."""
-    r = requests.post(f"{url}/flush_cache", timeout=30)
-    return r.status_code == 200
+def flush_cache(url: str = DEFAULT_URL, wait_s: float = 30.0) -> bool:
+    """radix cache를 비운다.
+
+    SGLang은 실행 중이거나 대기 중인 요청이 있으면 flush를 거절한다(HTTP 400).
+    직전 요청의 스트림이 끝났어도 서버 안에서 정리 중일 수 있으므로, `timeout` 인자로
+    "서버가 한가해질 때까지 최대 wait_s초 기다렸다가 flush"하게 한다 (v0.5.23 flush_wrapper).
+    실패하면 경고를 출력한다 — cold 측정이 몰래 warm이 되는 것을 막기 위해.
+    """
+    try:
+        r = requests.post(f"{url}/flush_cache", params={"timeout": wait_s}, timeout=wait_s + 10)
+        ok = r.status_code == 200
+    except requests.RequestException as e:
+        ok, r = False, e
+    if not ok:
+        import sys
+        print(f"[경고] flush_cache 실패: {getattr(r, 'text', r)!r}. 이후 측정에 cache hit가 섞일 수 있습니다.",
+              file=sys.stderr)
+    return ok
 
 
 def server_info(url: str = DEFAULT_URL) -> Dict[str, Any]:

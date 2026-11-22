@@ -8,9 +8,10 @@ RunPod에서는 실행만 합니다.
     python common/loadgen.py --num 16 --concurrency 1,4
 
 흉내 내는 것 (숫자는 실제 GPU와 전혀 무관):
-  - /generate (stream / non-stream), /health, /flush_cache, /server_info
+  - /generate (stream / non-stream), /v1/chat/completions (non-stream), /health, /flush_cache, /server_info, /metrics
   - prefill 시간 ∝ cache miss token 수, decode step 시간 ∝ 1 + 0.02 × running 요청 수
-  - 아주 단순한 prefix cache (이전 프롬프트들과의 최장 공통 prefix) → meta_info.cached_tokens
+  - 아주 단순한 prefix cache (이전 요청들과의 최장 공통 prefix, 마지막 token 제외, 끝난 요청의 출력 포함)
+    → meta_info.cached_tokens
   - stdout에 SGLang 형식의 'Prefill batch' / 'Decode batch' 로그
 흉내 내지 않는 것: 실제 batching, 메모리 한계, retraction, 텍스트 생성
 """
@@ -64,23 +65,41 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        self.path = self.path.split("?", 1)[0]
         if self.path == "/health":
             self.send_response(200)
             self.send_header("Content-Length", "0")
             self.end_headers()
         elif self.path in ("/server_info", "/get_server_info"):
             self._json(200, {"model_path": "mock", "max_total_num_tokens": 100000, "mock": True})
+        elif self.path == "/metrics":
+            body = (f'sglang:num_running_reqs{{model_name="mock"}} {_running}\n'
+                    f'sglang:num_queue_reqs{{model_name="mock"}} {_queue}\n'
+                    'sglang:token_usage{model_name="mock"} 0.1\n').encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
         else:
             self._json(404, {"error": "not found"})
 
     def do_POST(self):
         global _running, _queue
+        self.path = self.path.split("?", 1)[0]
         n = int(self.headers.get("Content-Length", 0))
         req = json.loads(self.rfile.read(n) or b"{}")
         if self.path == "/flush_cache":
             with _lock:
                 _cache.clear()
             self._json(200, {"ok": True})
+            return
+        if self.path == "/v1/chat/completions":
+            n_out = int(req.get("max_tokens", 16))
+            prompt_len = sum(len(m.get("content", "")) for m in req.get("messages", []))
+            time.sleep(n_out * DECODE_STEP_S)
+            self._json(200, {"choices": [{"message": {"role": "assistant", "content": " tok" * n_out}}],
+                             "usage": {"prompt_tokens": prompt_len, "completion_tokens": n_out}})
             return
         if self.path != "/generate":
             self._json(404, {"error": "not found"})
@@ -91,8 +110,9 @@ class Handler(BaseHTTPRequestHandler):
         max_new = int(sp.get("max_new_tokens", 16))
         stream = bool(req.get("stream", False))
 
+        gen_ids = list(range(1000, 1000 + max_new))   # 가짜 출력 token
         with _lock:
-            cached = _match(ids)
+            cached = min(_match(ids), max(len(ids) - 1, 0))   # SGLang처럼 마지막 token은 항상 다시 계산
             _cache.append(ids)
             _running += 1
             running = _running
@@ -121,13 +141,16 @@ class Handler(BaseHTTPRequestHandler):
                          f"token usage: {min(0.99, _running * 0.05):.2f}, cuda graph: True, "
                          f"gen throughput (token/s): {_running / DECODE_STEP_S:.2f}, #queue-req: {_queue}")
                 if stream:
-                    self._chunk(b"data: " + json.dumps({"text": text, "meta_info": meta}).encode() + b"\n\n")
+                    self._chunk(b"data: " + json.dumps({"text": text, "output_ids": gen_ids[:i + 1],
+                                                        "meta_info": meta}).encode() + b"\n\n")
             meta["finish_reason"] = {"type": "length", "length": max_new}
+            with _lock:   # SGLang처럼 끝난 요청의 입력 + 출력(마지막 token 제외)을 캐시에 등록
+                _cache.append(ids + tuple(gen_ids[:-1]))
             if stream:
                 self._chunk(b"data: [DONE]\n\n")
                 self._chunk(b"")
             else:
-                self._json(200, {"text": text, "meta_info": meta})
+                self._json(200, {"text": text, "output_ids": gen_ids, "meta_info": meta})
         finally:
             with _lock:
                 _running -= 1

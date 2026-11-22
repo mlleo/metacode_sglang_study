@@ -59,7 +59,7 @@ bash common/stop.sh
 1. 그래프: 공유 비율 → output throughput, p50 TTFT (두 subplot)
 2. 각 조건의 `cache_hit_rate`(CSV)와 이론값 (공유 비율 × (요청 수 − 1) / 요청 수 근처)의 비교
 3. 해석: 공유 비율 95%일 때 throughput이 몇 배 늘었나요? **TTFT 개선 폭과 throughput 개선 폭이 다르다면** 왜일까요?
-   (힌트: 출력 128 token의 decode는 캐시와 무관하다. Session 1 §4)
+   (힌트: 출력 128 token의 decode는 캐시와 무관하다. Session 1 §3, §5)
 4. `--disable-radix-cache` 대조군은 공유 75% 결과와 비교해 어떤가요? 공유 0% 결과와는?
    → "radix cache를 켜 두는 비용"이 거의 0이라는 것을 숫자로 보이세요.
 

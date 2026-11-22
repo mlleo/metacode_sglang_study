@@ -469,9 +469,10 @@ python -m sglang.benchmark.serving --backend sglang --port 30000 --model Qwen/Qw
 출력 지표 정의 (벤치마크 클라이언트 쪽에서 계산):
 
 - TTFT: 요청 전송 → 첫 스트림 청크 도착
-- ITL: 연속한 스트림 청크 사이 간격 (청크 하나에 token이 여러 개 오면 그 간격 하나)
+- ITL: 연속한 스트림 청크 사이 간격. 청크 하나에 token이 여러 개 오면 간격을 token 수로 나눠 token마다 기록 (sglang backend 기준, `benchmark/serving.py`). 우리 `common/client.py`도 같은 방식
+- 첫 token 시각은 **텍스트가 비어 있지 않은 첫 청크** 기준 (한국어처럼 글자가 덜 완성된 청크는 건너뜀 — §2.5)
 - TPOT: (E2E − TTFT) / (출력 token 수 − 1)
-- concurrency: 실제로 측정된 평균 동시 요청 수 (= Little's law의 L)
+- concurrency: Σ(요청별 E2E) / 전체 시간 = 실제로 측정된 평균 동시 요청 수 (Little's law의 L)
 
 구 경로 `python -m sglang.bench_serving`도 동작하지만 deprecated 경고가 뜹니다.
 

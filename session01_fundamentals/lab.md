@@ -59,7 +59,7 @@ weights = 3.44 GB → batch=1 decode 이론 하한 ≈ 3.41 ms/step (대역폭 1
 ### 해석 질문
 
 1. **inlen 실험**: 입력 128 → 2048 (16배)일 때 prefill_ms는 몇 배? decode_step_ms는?
-   → prefill은 입력에 따라 크게 늘고, decode step은 거의 그대로여야 합니다. 왜일까요? (§2, §4)
+   → prefill은 입력에 따라 크게 늘고, decode step은 거의 그대로여야 합니다. 왜일까요? (이론 §3, §5)
 2. **batch 실험**: batch 1 → 32에서 decode_step_ms는 몇 배? decode_tok_per_s는 몇 배?
    → step 시간이 32배가 아니라면 그게 "memory-bound 공짜 구간"입니다.
 3. batch=1 decode_step_ms를 **이론 하한**과 비교하세요. 몇 배 느린가요?
@@ -173,7 +173,7 @@ python session01_fundamentals/code/sglang_same_workload.py --batches 1,8,32 --ou
 | 32 | | | | | |
 
 토론 (조별 3분):
-- 같은 GPU, 같은 weight, 같은 greedy decoding인데 왜 다른가? 후보를 3개 이상 적어 보세요. (힌트: §6 표)
+- 같은 GPU, 같은 weight, 같은 greedy decoding인데 왜 다른가? 후보를 3개 이상 적어 보세요. (힌트: 이론 §8 표)
 - SGLang batch=1 ITL은 이론 하한 3.4 ms에 얼마나 가까운가요?
 - HF는 batch 32가 "동시에 도착"해야만 가능했습니다. SGLang은 요청이 따로 도착해도 묶어 줍니다. 이 차이는 이 표에 드러나 있나요? (드러나 있지 않습니다 — 그래서 Session 2에서 다른 측정 방법이 필요합니다.)
 

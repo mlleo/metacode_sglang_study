@@ -129,7 +129,7 @@ python session02_architecture_batching/code/bench_to_csv.py results/s03_policy.j
 | fcfs | | | | | |
 
 - LPM이 hit rate를 올렸나요? throughput은?
-- p99 TTFT는 어느 쪽이 더 나쁜가요? 왜 그럴까요? (§6 starvation)
+- p99 TTFT는 어느 쪽이 더 나쁜가요? 왜 그럴까요? (이론 §6.1 starvation)
 - **차이가 안 보인다면**: pool이 충분히 작지 않거나, 요청이 너무 적어 대기열이 짧은 것입니다. `--max-total-tokens 16000`으로 다시 해 보세요.
   "차이가 안 나는 조건"을 찾는 것도 좋은 결과입니다.
 

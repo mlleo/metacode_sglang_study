@@ -15,6 +15,7 @@
 | 2 | `py-spy dump` 권한, sweep 소요 시간 | py-spy는 선택 실습으로 |
 | 3 | `policy_compare.sh`에서 LPM/FCFS 차이가 보이는 pool 크기 | 16000으로 줄여 공지 |
 | 4 | `retraction_sweep.sh`의 `eos`에서 retraction이 실제로 일어나는지, `nochunk`에서 OOM 여부 | `--max-new-tokens 2048` / pool 20000 / `--mem-fraction-static 0.6` |
+| 4 | `interference_sweep.sh`에서 nochunk/4096/1024의 최악 멈춤이 비슷하고 mx·pd에서 줄어드는지 (이론 §4.3의 주장 — 코드 읽기로 도출했으므로 꼭 실측 확인) | 결과가 다르면 lecture §4.3–4.6을 실측에 맞게 수정 |
 | 5 | `--quantization fp8`, `--kv-cache-dtype fp8_e4m3`, NGRAM이 4090에서 시작되는지 | 안 되는 조합은 lab에서 제외하고 공지 |
 | 6 | `/start_profile`로 trace가 생성되는지, 파일 크기 | `num_steps`를 5로 |
 

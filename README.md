@@ -15,6 +15,47 @@
 
 ---
 
+## 이 스터디를 마치면
+
+> 한 줄 요약: **"SGLang을 써 봤다"가 아니라, 어떤 inference engine이든 batch · KV cache · 병목 · 측정이라는 같은 질문으로 뜯어볼 수 있게 됩니다.**
+
+### 1. 추론 엔진을 보는 머릿속 모델
+
+- prefill과 decode가 왜 다른 종류의 일인지(compute-bound vs memory-bound) 설명하고, "batch=1 decode의 최저 시간 ≈ weight 크기 ÷ 메모리 대역폭" 같은 계산을 손으로 할 수 있다
+- 모델 `config.json`만 보고 KV cache 크기, GPU에 들어가는 token 수, 동시에 받을 수 있는 사용자 수를 추정할 수 있다
+- decode step 시간을 **CPU 준비 · launch overhead · weight 읽기 · KV 읽기 · step당 token 수**로 분해하고, 어떤 최적화가 어느 항을 줄이는지 말할 수 있다
+
+### 2. SGLang 내부 구조
+
+- 요청 하나의 일생(TokenizerManager → Scheduler → DetokenizerManager)을 함수 이름 수준으로 그릴 수 있다
+- 스케줄러 루프와 "prefill 우선" 규칙이 continuous batching을 만드는 방식을 설명할 수 있다
+- token 단위 KV 메모리 풀과 RadixAttention(radix tree의 match / split / insert / evict)을 손으로 추적할 수 있다
+- admission control(new_token_ratio), retraction, chunked prefill과 mixed chunk, overlap scheduling이 언제 무엇을 하는지 안다
+- ForwardBatch, attention backend, CUDA graph, FP8 양자화, speculative decoding이 GPU 위에서 하는 일을 안다
+- 수천 줄짜리 실제 엔진 코드를 "작은 개념 구현 → 실제 코드에서 같은 이름 찾기" 방식으로 읽을 수 있다
+
+### 3. 손에 남는 기술
+
+- SGLang 서버를 띄우고 플래그로 동작을 바꿔 가며 실험할 수 있다
+- 공식 벤치마크 도구로 동시성(closed-loop) / 도착률(open-loop) sweep을 돌리고 latency–throughput 곡선을 해석할 수 있다
+- 서버 로그 · Prometheus metrics · torch profiler trace로 병목(대기열 / 메모리 / 긴 prefill 간섭 / CPU overhead)을 진단할 수 있다
+- SLO 기준 capacity와 $/1M tokens를 계산해 설정을 **숫자로** 추천할 수 있다
+- 클라우드 GPU를 예산 안에서 계획적으로 쓸 수 있다
+
+### 4. 측정하는 사람의 습관
+
+- 실행 전에 결과를 **숫자로 예측**하고, 틀리면 왜 틀렸는지 찾는다
+- 변수 하나만 바꾸고, warm-up · cache 상태 · 반복 횟수 · 신뢰구간을 챙긴다
+- 평균이 아니라 p99를 보고, 벤치마크 설정 자체가 시스템 동작을 바꿀 수 있음을 의심한다
+- 결과를 "I expected → I changed → I measured → I found" 4문장으로 설명하고 재현 가능하게 공개한다
+
+### 이 스터디의 범위 밖
+
+멀티 GPU 운영(TP/DP, PD 분리, HiCache)은 개념 지도만 다루고 실습하지 않습니다. CUDA/Triton 커널 작성, 양자화 정확도의 체계적 평가,
+70B급·MoE 모델 서빙, Kubernetes·autoscaling 같은 배포 운영도 다루지 않습니다. 최종 프로젝트에서 일부를 골라 더 파고들 수 있습니다.
+
+---
+
 ## 커리큘럼
 
 | 회차 | 주제 | 핵심 질문 | 실습 하이라이트 | 과제 |
@@ -94,6 +135,10 @@ bash common/stop.sh
 - [docs/glossary.md](docs/glossary.md) — 용어집
 - [docs/instructor_guide.md](docs/instructor_guide.md) — 강사용: 사전 리허설, 발표 운영, 채점, 자주 막히는 지점
 - [submissions/README.md](submissions/README.md) — 과제 제출 방법 (fork → PR)
+
+> ⚠️ **자료 상태:** 모든 명령·플래그·로그 형식·코드 경로는 SGLang v0.5.23 소스와 대조했고, 측정 도구는 mock 서버로 테스트했습니다.
+> 하지만 **실제 GPU에서의 전 회차 리허설은 아직**입니다. 강사는 수업 전에 [instructor_guide.md §1](docs/instructor_guide.md#1-개강-전-12주-전)의 체크리스트대로 한 번씩 돌려 주세요.
+> 실습 표의 빈칸과 예측 질문의 기준 범위는 리허설 결과로 채우는 것을 권장합니다.
 
 ## 스터디 원칙
 
