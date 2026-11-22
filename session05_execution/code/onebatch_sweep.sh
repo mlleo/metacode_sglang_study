@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# 서버 없이 '한 batch'의 prefill / decode step 시간을 잰다 (python -m sglang.benchmark.one_batch).
+# HTTP·토크나이저·스케줄러가 빠지므로 순수한 GPU 실행 시간에 가장 가깝다.
+#
+#   bash session05_execution/code/onebatch_sweep.sh <tag> [추가 server 인자...]
+#   예) bash session05_execution/code/onebatch_sweep.sh base
+#       bash session05_execution/code/onebatch_sweep.sh nograph --cuda-graph-backend-decode disabled
+#       bash session05_execution/code/onebatch_sweep.sh triton  --attention-backend triton
+#       bash session05_execution/code/onebatch_sweep.sh fp8w    --quantization fp8
+#
+# 결과: results/s05_onebatch.jsonl 에 행 추가 (run_name = tag)
+# 모델 로딩 + CUDA graph capture 때문에 실행당 1–2분.
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+source common/env.sh
+TAG="${1:?tag 필요}"; shift || true
+BS="${BS:-1 4 16 64 128}"
+IN="${IN:-512}"
+OUT="${OUT:-64}"
+
+if pgrep -f "sglang.launch_server" > /dev/null; then
+  echo "[오류] 서버가 GPU를 쓰고 있습니다. bash common/stop.sh 먼저."; exit 1
+fi
+
+# shellcheck disable=SC2086
+python3 -m sglang.benchmark.one_batch \
+  --model-path "${MODEL}" \
+  --batch-size ${BS} --input-len "${IN}" --output-len "${OUT}" \
+  --run-name "${TAG}" --result-filename "${RESULT_DIR}/s05_onebatch.jsonl" \
+  "$@" 2>&1 | tee "${LOG_DIR}/onebatch_${TAG}.log" | grep -E "^Prefill\.|^Decode\.  median|^Total\.|max_total_num_tokens" || true
+echo "saved → ${RESULT_DIR}/s05_onebatch.jsonl"

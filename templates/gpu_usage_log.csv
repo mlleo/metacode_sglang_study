@@ -1,0 +1,2 @@
+date,gpu,cloud,start,end,usd_per_hour,cost_usd,session,what
+2026-12-01,RTX 4090,community,19:40,20:55,0.59,0.74,s01,setup + hf baseline + first server
