@@ -4,7 +4,7 @@ NGRAM은 별도의 draft 모델 없이, 이미 본 token 시퀀스(프롬프트+
 target 모델이 한 번에 검증한다. 출력이 입력을 많이 베끼는 작업(코드 수정, 문서 교정, 요약에서 인용)에 강하다.
 
     # 1) 기준선
-    bash common/launch.sh spec_off
+    bash common/launch.sh spec_off --mem-fraction-static 0.7 --cuda-graph-max-bs-decode 8
     python session05_execution/code/spec_ngram.py --tag off --out results/s05_spec.csv
     bash common/stop.sh
     # 2) NGRAM (SGLang 문서 예시 설정)

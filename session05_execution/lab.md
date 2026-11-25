@@ -122,7 +122,7 @@ cat results/s05_quant_memory.txt
 ## 5. Speculative decoding — NGRAM (10분)
 
 ```bash
-bash common/launch.sh spec_off
+bash common/launch.sh spec_off --mem-fraction-static 0.7 --cuda-graph-max-bs-decode 8
 python3 session05_execution/code/spec_ngram.py --tag off --out results/s05_spec.csv
 bash common/stop.sh
 
@@ -140,6 +140,7 @@ bash common/stop.sh
 | creative | 1 | | | | |
 | creative | 8 | | | | |
 
+- 두 서버에 같은 KV 메모리 비율과 decode graph 상한을 적용합니다. speculative 검증 방식은 서버가 따로 정할 수 있으므로 시작 로그도 남기세요.
 - 어떤 workload/동시성에서 이득이 가장 큰가요? 손해를 보는 칸이 있나요?
 - `accept len`과 배율의 관계는? (배율 ≈ accept len ÷ (verify step 비용 / 일반 step 비용))
 
