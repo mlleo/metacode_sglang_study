@@ -5,19 +5,19 @@
 
 ## Part A. KV cache 손계산 (GPU 불필요, 30분)
 
-아래 모델의 `config.json`을 Hugging Face에서 열어 값을 직접 읽고 표를 채우세요.
+아래 모델의 공개 `config.json`을 열어 표를 채우세요. `head_dim`이 없으면 `hidden_size / num_attention_heads`로 구합니다. weight 계산에는 전체 파라미터 수(Qwen3-1.7B는 이 수업에서 1.72B, 나머지는 모델 카드의 전체 수)를 사용합니다.
 `common/kvcalc.py`로 검산해도 좋지만 **공식에 대입한 식을 README에 남기세요.**
 
 | 모델 | layers | q heads | kv heads | head_dim | KV / token (BF16) | weights (BF16) |
 |---|---:|---:|---:|---:|---:|---:|
-| `Qwen/Qwen3-1.7B` | | | | | | |
-| `Qwen/Qwen3-8B` | | | | | | |
-| `meta-llama/Llama-3.1-8B-Instruct` | | | | | | |
+| [Qwen3-1.7B](https://huggingface.co/Qwen/Qwen3-1.7B/blob/main/config.json) | | | | | | |
+| [Qwen3-8B](https://huggingface.co/Qwen/Qwen3-8B/blob/main/config.json) | | | | | | |
+| [Qwen2.5-7B-Instruct](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct/blob/main/config.json) | | | | | | |
 
 질문 (각 2–3문장):
 
-1. RTX 4090(24 GB)에서 `mem_fraction_static = 0.7`이라고 할 때, 각 모델의 KV pool에는 몇 token이 들어가는가?
-   그 pool로 **context 4K짜리 사용자를 동시에 몇 명** 받을 수 있는가?
+1. RTX 4090(24 GiB)에서 `mem_fraction_static = 0.7`이라고 할 때, 각 모델의 KV pool 용량을 추정하세요.
+   그 pool로 **입력과 출력을 합쳐 4,096 token인 요청**을 몇 개 담을 수 있나요? weight 크기도 GiB로 바꿔 계산합니다.
 2. 8B 모델을 BF16으로 4090에 올리면 무슨 일이 생기는가? 이 문제를 풀 수 있는 방법 두 가지를 추측해 보세요. (Session 5에서 하나를 직접 실험합니다.)
 3. Qwen3-8B가 MHA(= kv heads = q heads)였다면 1번 답은 어떻게 바뀌는가?
 
@@ -51,6 +51,8 @@ bash common/stop.sh
 
 1. **batch → 처리량** · HF manual의 decode 처리량과 SGLang의 요청 전체 처리량을 각각 표시합니다. 둘 다 출력 64 token으로 맞춥니다. prefill을 포함한 두 흐름을 비교하려면 수업의 선택 실습 2인 HF `generate()` 결과와 SGLang 결과를 사용합니다. 서버 측정에는 HTTP 시간이 포함됩니다.
 2. **입력 길이 → 응답 시작 시간** · HF manual의 prefill 시간과 SGLang의 클라이언트 TTFT를 두 선으로 그리고 각각의 측정 범위를 표시합니다.
+
+첫 그래프는 `s01_manual.csv`에서 `experiment=batch`인 행의 `decode_tok_per_s`와 `s01_sglang.csv`의 `output_tok_per_s`를 씁니다. 두 번째는 `experiment=inlen`의 `prefill_ms`와 `s01_ttft_vs_inlen.csv`의 `ttft_ms_p50`을 씁니다. 열 이름이 다른 두 표는 로컬에서 필요한 열만 골라 한 표로 합치면 스프레드시트나 `common/plot.py`에서 그릴 수 있습니다.
 
 ## Part D. 해석 (README 본문)
 

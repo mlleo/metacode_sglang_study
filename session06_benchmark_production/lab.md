@@ -1,7 +1,7 @@
 # Session 6 실습 — 반복·프로파일·지표·비용
 > **2시간 수업 기준:** 필수 1·2·4·6 / 선택 3, 5
 
-> 실습 55분 (2시간 수업 기준) / GPU 예산 약 $0.8 / 결과물: `results/s06_*.csv`, `profiles/*`
+> 실습 55분 (2시간 수업 기준) / GPU 예산 약 $0.8 / 결과물: `results/s06_*.csv`, `results/s06_trace_*.txt`, Perfetto 스크린샷
 > 남은 시간은 최종 프로젝트 첫 실험(작은 규모 리허설)에 씁니다.
 
 | # | 실습 | 시간 |
@@ -40,7 +40,7 @@ python3 session06_benchmark_production/code/repeat_stats.py results/s06_rep.csv 
 - 이번 반복은 각 설정의 변동을 보는 실습입니다. 설정의 효과를 검정하려면 같은 조건끼리 짝지어 차이를 구하거나, 독립 두 표본의 차이 구간을 계산합니다.
 - 옆 사람(다른 Pod, 같은 4090)과 c16 평균 throughput을 비교해 보세요. 호스트 간 차이는 반복 내 차이보다 큰가요?
 
-> 서버는 다음 실습에서도 쓰지 않으므로 끕니다: `bash common/stop.sh`
+프로파일 실습은 서버를 새로 시작합니다. `bash common/stop.sh`로 반복 측정 서버부터 끄세요.
 
 ---
 
@@ -50,7 +50,7 @@ python3 session06_benchmark_production/code/repeat_stats.py results/s06_rep.csv 
 
 ```bash
 bash session06_benchmark_production/code/profile_decode.sh c1 1
-python3 session06_benchmark_production/code/trace_summary.py profiles/c1 --stage decode
+python3 session06_benchmark_production/code/trace_summary.py profiles/c1 --stage decode | tee results/s06_trace_c1.txt
 ```
 
 graph OFF와 동시성 32는 강사가 같은 환경에서 재어 둔 trace를 사용합니다. 직접 재려면 아래 명령을 사용하세요.
@@ -72,7 +72,7 @@ bash session06_benchmark_production/code/profile_decode.sh c32 32
 - CPU 줄에서 `cudaLaunchKernel`이 촘촘히 찍힌 구간과, `cudaGraphLaunch` 한 번으로 끝나는 구간(c1)을 비교하세요.
 - c32에서 attention 비중이 c1보다 커졌나요? (Session 5의 `KV%`와 같은 이야기)
 
-> trace 파일은 수십 MB일 수 있습니다. 제출할 때는 올리지 말고 `trace_summary.py` 출력만 붙이세요.
+> trace 파일은 수십 MB일 수 있습니다. 제출에는 요약과 Perfetto 스크린샷만 넣습니다. 스크린샷을 나중에 찍을 계획이면 Pod를 종료하기 전에 decode trace 하나를 따로 내려받으세요.
 
 ---
 

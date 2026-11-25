@@ -518,9 +518,9 @@ batch N+1의 입력은 batch N이 만든 token입니다. 그런데 batch N+1을 
 
 | 플래그 | 늘리면 | 줄이면 | 언제 만지나 |
 |---|---|---|---|
-| `--mem-fraction-static` | KV pool↑ → 동시 처리↑ | OOM 위험↓ | 시작 시 OOM이면 줄임 |
+| `--mem-fraction-static` | KV pool↑, activation·graph 여유↓ | GPU 실행 버퍼 여유↑, KV pool↓ | 시작 시 OOM이면 줄임 |
 | `--max-total-tokens` | (디버깅용) pool 직접 지정 | | 실험에서 메모리 압박을 일부러 만들 때 |
-| `--max-running-requests` | 동시 decode 수 상한↑ | tail latency 안정 | `token usage`가 낮은데 `#queue-req`가 쌓일 때 확인 |
+| `--max-running-requests` | 동시 decode 수 상한↑ | decode batch 상한↓, 큐 대기 가능성↑ | `token usage`가 낮은데 `#queue-req`가 쌓일 때 확인 |
 | `--chunked-prefill-size` | 긴 prefill 효율↑, 가해자 TTFT↓ | activation 메모리↓, (mixed/interval과 함께일 때) 피해자 ITL↓ | 긴 입력이 섞이는 서비스, 시작 시 OOM |
 | `--enable-mixed-chunk` | | | ITL 스파이크가 문제일 때 (조각과 decode를 섞음) |
 | `--prefill-decode-interval` | prefill 뒤 decode를 N번 보장 | | ITL 스파이크, prefill이 연달아 decode를 굶길 때 |

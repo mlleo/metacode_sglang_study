@@ -46,8 +46,8 @@ grep -E "Load weight end|KV Cache is allocated|max_total_num_tokens=" logs/serve
 | 항목 | 값 |
 |---|---|
 | `#tokens` (KV Cache is allocated) | |
-| `KV size` (GB) | |
-| KV size ÷ #tokens (KiB/token) | |
+| `K size`와 `V size`의 합 (로그에 GB로 표시, 계산은 GiB 기준) | |
+| (K + V) ÷ #tokens (KiB/token) | |
 | 손계산 (Session 1 과제) | 112 KiB/token |
 
 일치하나요? 이제 `mem_fraction_static`을 바꿔서 서버가 고르는 token 수가 어떻게 바뀌는지 예측 → 확인합니다.
@@ -59,7 +59,7 @@ grep -E "KV Cache is allocated|max_total_num_tokens=" logs/server_mf05.log
 ```
 
 - 예측: 24 GiB × 0.5 − weights 3.2 GiB = ? GiB → ? token
-- 실측과 차이가 나면 그 차이는 무엇일까요? (힌트: GiB와 GB, 그리고 "24 GB"의 실제 용량)
+- 실측과 차이가 나면 GPU의 실제 가용 메모리와 weight 외에 이미 사용 중인 메모리를 확인하세요.
 
 ```bash
 bash common/stop.sh

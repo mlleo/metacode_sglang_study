@@ -21,11 +21,12 @@ import os
 from collections import defaultdict
 
 CATEGORIES = [  # 위에서부터 먼저 걸리는 것으로 분류 (근사치입니다)
+    ("attention", ("flashattn", "flash_attn", "attention", "fmha", "batchdecode", "batchprefill",
+                   "singledecode", "singleprefill", "scaled_dot_product", "run_mha_fwd")),
     ("sampling", ("sampling", "argmax", "topk", "top_k", "softmax", "sample", "logits")),
-    ("attention", ("flashinfer", "attention", "fmha", "batchdecode", "batchprefill", "decode_attention", "extend_attention", "fwd_kernel")),
-    ("gemm", ("gemm", "cutlass", "cublas", "matmul", "xmma", "sm80_", "sm89_", "sm90_", "ampere_", "fp8")),
     ("norm/act/rope", ("rms", "norm", "silu", "act_and_mul", "rotary", "rope", "gelu")),
-    ("memcpy/index", ("memcpy", "memset", "copy", "index", "gather", "scatter", "cat")),
+    ("gemm", ("gemm", "cublas", "matmul", "xmma", "nvjet", "ampere_s168", "sm80_", "sm89_", "sm90_")),
+    ("memcpy/index", ("memcpy", "memset", "copy", "index", "gather", "scatter", "catkernel")),
 ]
 
 

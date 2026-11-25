@@ -42,6 +42,7 @@ RESULT_DIR="$PWD/results/s04_homework" AGGRESSOR_IN=8000 bash session04_schedule
 
 1. **그래프 1**: x = 가해자 TTFT, y = 피해자 p99 ITL. 설정마다 점 하나 (8K, 16K 각각 다른 색). 왼쪽 아래가 좋은 설정입니다.
    SLO(p99 ITL ≤ 100 ms) 선을 그리고, SLO를 만족하는 설정 중 가해자 TTFT가 가장 짧은 것을 고르세요.
+   입력 길이별로 고르고, 만족하는 설정이 없으면 그렇게 보고하세요. 최대 ITL도 같이 기록하면 p99에서 보이지 않는 드문 멈춤을 설명할 수 있습니다.
 2. **그래프 2**: 설정 하나를 골라 `plot_timeline.py`로 ITL 타임라인. 스파이크 하나를 확대해 "이 스파이크의 높이 ≈ chunk 하나의 prefill 시간"인지 확인하세요.
    (chunk 하나의 prefill 시간은 Session 1 과제의 TTFT vs 입력 길이 데이터로 추정 가능)
 3. 두 입력 길이에서 mixed를 켰을 때 TTFT와 기존 요청의 긴 멈춤이 각각 얼마나 바뀌었나요? 관찰한 값이 예측과 다르면 타임라인에서 요청이 겹친 구간부터 확인하세요.

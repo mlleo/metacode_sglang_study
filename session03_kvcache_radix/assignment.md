@@ -62,7 +62,7 @@ bash common/stop.sh
    (힌트: prefix hit가 아끼는 것은 주로 prefill입니다. 생성 중에는 KV를 계속 읽습니다. Session 1 §3, §5)
 4. 선택 대조군을 실행했다면 공유 75%에서 cache ON/OFF를 비교하세요. ON 상태의 공유 0%와 비교할 때는 prefix 구성도 함께 바뀐다는 점을 적습니다.
 
-## Part C. 선택 실험 (하나 골라서, GPU $0.3 이내)
+## Part C. 선택 실험 (GPU 예산에 여유가 있으면 하나, $0.3 이내)
 
 - **C1. page_size**: `--page-size 16`으로 띄우고 `prefix_basics.py`를 돌려 cached 값이 어떻게 바뀌는지 (16의 배수로 잘리는지) 확인. 장점은 무엇일까?
 - **C2. chat template과 cache**: `--enable-cache-report`로 서버를 띄우고, OpenAI 호환 `/v1/chat/completions`로 6턴 대화를 진행하며
@@ -85,6 +85,5 @@ bash common/stop.sh
 | Part A 손 추적 정확성 + 시뮬레이터와의 차이 분석 | 3 |
 | Part B 측정 재현성 + 그래프 | 2 |
 | Part B 해석 (TTFT vs throughput 개선 폭 차이) | 2 |
-| Part C | 1 |
-| Part D | 1 |
+| Part D 코드 리딩 | 2 |
 | GPU 기록 | 1 |

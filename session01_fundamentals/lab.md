@@ -59,7 +59,7 @@ weights = 3.44 GB → batch=1 decode 이론 하한 ≈ 3.41 ms/step (대역폭 1
 ### 해석 질문
 
 1. **inlen 실험**: 입력 128 → 2048 (16배)일 때 prefill_ms는 몇 배? decode_step_ms는?
-   → prefill은 입력에 따라 크게 늘고, decode step은 거의 그대로여야 합니다. 왜일까요? (이론 §3, §5)
+   → 이 입력 범위에서 prefill과 decode 중 입력 길이에 더 민감한 쪽을 예상하세요. 측정값의 순서가 예상과 다르면 한 번 더 재고 차이가 반복되는지 봅니다. (이론 §3, §5)
 2. **batch 실험**: batch 1 → 32에서 decode_step_ms는 몇 배? decode_tok_per_s는 몇 배?
    → step 시간이 32배보다 적게 늘었다면 batch로 처리량을 얻은 것입니다. weight를 여러 요청이 같이 쓰는 모델로 이 결과를 설명해 보세요.
 3. batch=1 decode_step_ms를 **이론 하한**과 비교하세요. 몇 배 느린가요?
@@ -140,12 +140,12 @@ python3 session01_fundamentals/code/first_requests.py
 네 가지를 순서대로 해 봅니다.
 
 1. **native `/generate`** — 응답의 `meta_info`에 `prompt_tokens`, `cached_tokens`가 있습니다. `cached_tokens`는 Session 3의 주인공입니다.
-2. **streaming** — 글자가 흘러나오는 속도가 곧 ITL입니다. HF batch=1 decode_step_ms와 비교해 보세요.
+2. **streaming** — 화면에서 느끼는 끊김은 토큰이 도착하는 간격과 관련이 있습니다. 출력의 ITL은 클라이언트에서 관찰한 값입니다. HF batch=1의 forward 시간과 비교해 보세요.
 3. **OpenAI 호환 API** — OpenAI SDK를 쓰는 기존 코드는 `base_url`만 바꾸면 SGLang에 붙습니다.
 4. **8개 순차 vs 동시** — 동시에 보내면 몇 배 빨라지나요? 서버 로그에서 확인:
 
    ```bash
-   grep "Decode batch" logs/server_baseline.log | tail -3
+   grep 'Decode batch, #running-req: 8,' logs/server_baseline.log | tail -3
    ```
 
    `#running-req: 8` 이 보이면 8개 요청이 **한 batch로 묶여** decode되고 있다는 뜻입니다. 누가 묶었을까요? (→ Session 2의 Scheduler)
@@ -190,7 +190,7 @@ tar czf s01_$(date +%m%d).tgz results logs
 2. RunPod 콘솔 → Pods → **Terminate** → 목록에서 사라졌는지 확인
 3. `templates/gpu_usage_log.csv` 형식으로 오늘 사용 기록 남기기
 
-그래프는 로컬에서:
+선택 실습 2를 했다면 두 엔진의 요청 전체 처리량을 로컬에서 비교하세요.
 
 ```bash
 python3 common/plot.py results/s01_hf.csv results/s01_sglang.csv \

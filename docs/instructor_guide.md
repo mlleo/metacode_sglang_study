@@ -4,7 +4,7 @@
 
 ### GPU 리허설
 
-H100 한 장에서 설치, 실행, 결과 파일을 먼저 확인하고, 수강생 환경은 RTX 4090 RunPod에서 짧게 재현합니다. H100의 시간과 메모리 수치는 학생용 예상 범위에 넣지 않습니다. 새 결과를 만들 때는 GPU와 Pod가 다른 작업과 겹치지 않게 한 장을 지정하고 빈 체크아웃에서 시작합니다.
+H100 한 장에서 설치, 실행, 결과 파일을 먼저 확인하고, 수강생 환경은 RTX 4090 RunPod에서 짧게 재현합니다. H100의 시간과 메모리 수치는 학생용 예상 범위에 넣지 않습니다. 새 결과를 만들 때는 GPU와 Pod가 다른 작업과 겹치지 않게 한 장을 지정하고 빈 체크아웃에서 시작합니다. 아래 대역폭 3,350 GB/s는 [H100 SXM 80 GB 사양](https://docs.nvidia.com/enterprise-reference-architectures/hgx-ai-factory-h100-h200-b200/latest/components.html)입니다.
 
 ```bash
 # 리허설할 커밋의 저장소 루트
@@ -14,7 +14,7 @@ source common/env.sh
 bash common/setup_pod.sh
 
 # Session 1 · HF forward, Session 1–3 · HTTP, batching, prefix
-python3 session01_fundamentals/code/manual_decode.py --experiment batch --out results/s01_manual.csv
+python3 session01_fundamentals/code/manual_decode.py --experiment batch --bw-gbs 3350 --out results/s01_manual.csv
 bash common/launch.sh baseline --chunked-prefill-size 4096
 python3 session01_fundamentals/code/first_requests.py
 bash session02_architecture_batching/code/sweep_concurrency.sh rehearsal "1 8" 512 256
@@ -26,7 +26,7 @@ bash common/stop.sh
 bash session04_scheduler/code/interference_sweep.sh
 BS="1 16" bash session05_execution/code/onebatch_sweep.sh base
 BS="1 16" bash session05_execution/code/onebatch_sweep.sh nograph --cuda-graph-backend-decode disabled
-python3 session05_execution/code/onebatch_to_csv.py results/s05_onebatch.jsonl
+python3 session05_execution/code/onebatch_to_csv.py results/s05_onebatch.jsonl --peak-gbs 3350
 bash session06_benchmark_production/code/profile_decode.sh c1 1
 python3 session06_benchmark_production/code/trace_summary.py profiles/c1 --stage decode
 python3 session06_benchmark_production/code/cost_calc.py results/s02_rehearsal.csv \

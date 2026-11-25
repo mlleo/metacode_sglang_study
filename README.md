@@ -102,8 +102,14 @@ git clone --branch main https://github.com/mlleo/metacode_sglang_study.git
 cd metacode_sglang_study
 
 # 1) 로컬에서 GPU 없이 스크립트 디버깅 (mock 서버) — GPU 비용 0원
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install requests matplotlib pandas
 python3 common/mock_server.py &                 # 가짜 SGLang 서버
+MOCK_PID=$!
+python3 -c 'from common.client import wait_ready; wait_ready(timeout=5)'
 python3 common/client.py --input-len 512        # 측정 클라이언트가 잘 도는지 확인
+kill "$MOCK_PID"
 
 # 2) RunPod Pod 안에서 (docs/runpod_guide.md 참고)
 git clone --branch main https://github.com/mlleo/metacode_sglang_study.git && cd metacode_sglang_study

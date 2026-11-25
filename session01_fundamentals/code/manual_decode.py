@@ -83,6 +83,8 @@ def main() -> None:
     p.add_argument("--bw-gbs", type=float, default=1008.0, help="GPU 메모리 대역폭 GB/s (4090≈1008, L4≈300)")
     p.add_argument("--out", default="results/s01_manual.csv")
     args = p.parse_args()
+    if args.out_len < 2:
+        p.error("--out-len은 decode step을 잴 수 있도록 2 이상이어야 합니다.")
 
     model = AutoModelForCausalLM.from_pretrained(args.model, dtype=torch.bfloat16).cuda().eval()
     weight_bytes = sum(t.numel() * t.element_size() for t in model.parameters())
@@ -98,10 +100,9 @@ def main() -> None:
     if args.experiment in ("nocache", "all"):
         plan += [("nocache", False, 1, 512)]
 
-    run(model, 1, 32, 4, True)  # warm-up: 첫 실행에는 커널 선택·메모리 할당 비용이 섞인다
-
     rows = []
     for exp, cache, b, n in plan:
+        run(model, b, n, 4, cache)  # 같은 prefill shape의 초기화 비용을 측정 전에 치른다
         r = run(model, b, n, args.out_len, cache)
         r = {"experiment": exp, **r, "theory_lower_ms": round(lower_ms, 2)}
         rows.append(r)

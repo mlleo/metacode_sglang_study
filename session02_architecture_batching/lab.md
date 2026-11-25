@@ -40,8 +40,8 @@ ps -eo pid,ppid,comm,args | grep -E "sglang" | grep -v grep
 **스케줄러가 지금 무엇을 하고 있는지 스택 보기** (`py-spy`는 SGLang 의존성으로 설치됩니다):
 
 ```bash
-SCHED_PID=$(pgrep -f "sglang::scheduler" | head -1)
-py-spy dump --pid $SCHED_PID | head -40
+SCHED_PID=$(pgrep -s "$(cat logs/server.pid)" -f 'sglang::scheduler' | head -1)
+py-spy dump --pid "$SCHED_PID" | head -40
 ```
 
 - 요청이 없을 때: 어떤 함수에서 대기하고 있나요? (`event_loop_overlap` → 요청 수신 함수)
@@ -107,6 +107,7 @@ python3 session02_architecture_batching/code/bench_to_csv.py results/s02_base.js
 | 1 | | | | | |
 | 8 | | | | | |
 | 32 | | | | | |
+| 64 | | | | | |
 | 128 | | | | | |
 
 해석 질문:

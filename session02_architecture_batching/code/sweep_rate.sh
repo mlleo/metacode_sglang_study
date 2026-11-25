@@ -16,12 +16,17 @@ FILE="${RESULT_DIR}/s02_${TAG}.jsonl"
 
 for R in $RATES; do
   echo ">>> request-rate=${R}/s num-prompts=${N}"
+  LOG="${LOG_DIR}/bench_${TAG}_r${R}.log"
   python3 -m sglang.benchmark.serving \
     --backend sglang --host 127.0.0.1 --port "${PORT}" --model "${MODEL}" \
     --dataset-name random-ids \
     --random-input-len "${IN}" --random-output-len "${OUT}" --random-range-ratio 1.0 \
     --num-prompts "${N}" --request-rate "${R}" \
     --flush-cache --warmup-requests 2 --seed 7 \
-    --output-file "${FILE}" 2>&1 | grep -E "Traffic request rate|Request throughput|Output token throughput|Median TTFT|P99 TTFT|Median ITL|Peak concurrent" || true
+    --output-file "${FILE}" > "$LOG" 2>&1 || {
+      tail -n 40 "$LOG" >&2
+      exit 1
+    }
+  grep -E "Traffic request rate|Successful requests|Request throughput|Output token throughput|Median TTFT|P99 TTFT|Median ITL|Peak concurrent" "$LOG"
 done
 echo "saved ${FILE}"

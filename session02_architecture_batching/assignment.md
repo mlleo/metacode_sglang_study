@@ -21,7 +21,7 @@ SLO: **p95 TTFT ≤ 500 ms, p95 ITL ≤ 50 ms**
 | A3 (선택) | 512 / **1024** | 출력 길이도 조사할 때 1, 8, 32, 64 |
 
 ```bash
-bash common/launch.sh baseline
+bash common/launch.sh in2k
 bash session02_architecture_batching/code/sweep_concurrency.sh in2k "1 8 32 64 128" 2048 256
 bash common/stop.sh
 ```
@@ -43,7 +43,7 @@ python3 session02_architecture_batching/code/find_capacity.py results/s02_in2k.c
 3. **팀장에게 보내는 답변 3–5문장.** 숫자, 그리고 "어떤 조건이 바뀌면 이 숫자가 틀려지는가"를 포함하세요.
 4. **왜?** 입력이 2K로 늘었을 때 한계가 바뀌었나요? 가능한 원인 두 가지를 로그와 대조하세요.
    (힌트 ①: 새 요청의 prefill이 길어지면 기존 요청의 ITL이 어떻게 되나? ② KV pool ≈ 12만 token에 요청 하나가 차지하는 양은?)
-   서버 로그(`common/logparse.py`)의 `token usage`·`#queue-req` 최대값을 근거로 쓰세요.
+   수업에서 보관한 `logs/server_baseline.log`와 과제의 `logs/server_in2k.log`를 `common/logparse.py`에 함께 넘겨 `token_usage_max`와 `queue_req_max`를 비교하세요.
 5. 선택 실험 A3(출력 1K)는 throughput과 TTFT 중 무엇에 더 큰 영향을 줬나요? Little's law로 설명해 보세요.
 
 ## Part C. 아키텍처 다이어그램 (GPU 불필요)

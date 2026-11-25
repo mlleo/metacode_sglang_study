@@ -37,12 +37,12 @@ print("meta_info:", json.dumps({k: r["meta_info"].get(k) for k in
                                ensure_ascii=False))
 
 # 2) streaming — token이 도착하는 대로 출력, TTFT와 ITL 측정
-section("2) streaming: 화면에 흘러나오는 속도 = ITL")
+section("2) streaming: 첫 토큰과 토큰 사이 간격 재기")
 t0 = time.perf_counter()
 first = None
 prev_len = 0
 with requests.post(f"{URL}/generate", stream=True, json={
-    "text": "Write a short poem about GPUs.\n",
+    "text": "GPU stands for",
     "sampling_params": {"max_new_tokens": 64, "temperature": 0},
     "stream": True,
 }) as resp:
@@ -59,7 +59,7 @@ with requests.post(f"{URL}/generate", stream=True, json={
         print(text[prev_len:], end="", flush=True)   # 기본 설정에서 text는 '누적' 문자열
         prev_len = len(text)
 print(f"\n→ TTFT {first * 1000:.1f} ms")
-m = generate(prompt="Write a short poem about GPUs.\n", max_new_tokens=64)
+m = generate(prompt="A graphics processor is", max_new_tokens=64)
 itl = sorted(m["itls"])
 print(f"→ (common/client.py로 다시 측정) TTFT {m['ttft'] * 1000:.1f} ms, "
       f"ITL p50 {itl[len(itl) // 2] * 1000:.2f} ms, p99 {itl[int(len(itl) * 0.99)] * 1000:.2f} ms")
@@ -94,4 +94,4 @@ with ThreadPoolExecutor(8) as ex:
 par_t = time.perf_counter() - t0
 print(f"순차: {seq_t:.2f}s   동시: {par_t:.2f}s   → {seq_t / par_t:.1f}배")
 print("서버 로그에서 '#running-req: 8' 이 찍힌 Decode batch 줄을 찾아보세요:")
-print("  grep 'Decode batch' logs/server_baseline.log | tail -3")
+print("  grep 'Decode batch, #running-req: 8,' logs/server_baseline.log | tail -3")

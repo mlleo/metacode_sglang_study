@@ -8,7 +8,7 @@
     t=1.2s  E  출력  64
 
 static batching이라면 B~E는 A가 끝날 때까지 기다려야 한다.
-continuous batching이라면 B~E는 도착하자마자(다음 iteration에) 합류하고, 짧은 요청은 A보다 먼저 끝난다.
+continuous batching에서는 B~E가 A의 완료를 기다리지 않고 합류할 수 있다. 일찍 들어온 짧은 요청은 A보다 먼저 끝날 수 있다.
 
     bash common/launch.sh baseline
     python session02_architecture_batching/code/staggered.py --out results/s02_staggered.json --plot figures/s02_timeline.png

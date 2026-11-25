@@ -43,6 +43,16 @@ class CourseToolTests(unittest.TestCase):
         self.assertEqual(summary["gpu_busy_pct"], 100)
         self.assertEqual(summary["num_kernels"], 2)
 
+    def test_kernel_names_classify_operations_before_library(self):
+        names = {
+            "void cutlass::device_kernel<flash::FlashAttnFwdSm90<flash::CollectiveMainloop>": "attention",
+            "kernel_cutlass_kernel_flashinfernormkernelsfused_add_rmsnorm": "norm/act/rope",
+            "nvjet_sm90_tst_64x8_64x16_4x1_v_bz_TNT": "gemm",
+        }
+        for name, expected in names.items():
+            with self.subTest(name=name):
+                self.assertEqual(trace_summary.category(name), expected)
+
     def test_slo_limits_distinguish_load_throughput_and_cost(self):
         root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as tmp:

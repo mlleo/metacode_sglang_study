@@ -248,6 +248,8 @@ time ≈ max( FLOPs / peak_FLOPS ,  bytes_moved / mem_bandwidth )
 | L4 | ≈ 121 TFLOPS | ≈ 0.3 TB/s | ≈ 400 FLOP/byte |
 | H100 SXM | ≈ 990 TFLOPS | ≈ 3.35 TB/s | ≈ 295 FLOP/byte |
 
+표의 연산량은 희소성 가속을 제외한 기준값입니다. [RTX 4090 사양](https://images.nvidia.com/aem-dam/Solutions/geforce/ada/nvidia-ada-gpu-architecture.pdf), [H100 사양](https://www.nvidia.com/en-us/data-center/h100/)
+
 ```text
 achievable
  FLOPS  │                   ____________________  ← peak compute (165 TFLOPS)
@@ -512,7 +514,7 @@ Session 2에서 이 문제를 iteration 단위 스케줄링으로 어떻게 푸�
 2. prefill(프롬프트 전체, compute-bound, TTFT)과 decode(token 하나씩, memory-bound, ITL)는 다른 종류의 일이다.
 3. KV cache는 O(S²) 재계산을 O(S) 저장으로 바꾼다. Qwen3-1.7B는 112 KiB/token.
 4. batch=1 decode의 하한 ≈ weight bytes / 대역폭 ≈ 3.4 ms (4090).
-5. decode의 AI ≈ batch. batch를 키우면 ridge(≈165)까지는 throughput이 거의 공짜로 는다.
+5. weight 읽기만 센 근사에서는 decode의 AI ≈ batch입니다. 실제로는 batch와 context가 커질수록 KV 읽기도 늘어납니다.
 6. 하지만 KV 읽기는 요청마다 따로라 batch로 상쇄되지 않는다. 긴 context에서는 attention이 지배.
 7. 실제 시간에는 GPU가 CPU를 기다리는 overhead가 끼어 있다.
 8. TTFT / ITL(분포) / TPOT(평균) / E2E / throughput, 그리고 p50/p95/p99.
