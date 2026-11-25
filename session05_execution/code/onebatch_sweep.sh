@@ -10,6 +10,7 @@
 #
 # 결과: results/s05_onebatch.jsonl 에 행 추가 (run_name = tag)
 # 모델 로딩 + CUDA graph capture 때문에 실행당 1–2분.
+# v0.5.23에서 one_batch는 최대 테스트 batch에 맞춰 decode graph 상한을 지정한다.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 source common/env.sh

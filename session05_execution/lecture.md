@@ -279,7 +279,8 @@ is_bs_supported = cuda_graph_bs <= self.max_bs        # padding 허용(기본)�
 ### 4.3 제약과 대가
 
 - **모양과 주소가 고정**되어야 합니다. 녹화 때의 텐서 주소에 매번 입력을 복사해 넣고 재생합니다. 그래서 batch 크기별로 따로 녹화하고, 실제 batch가 13이면 16짜리 graph에 **padding**해서 실행합니다 (padding된 요청은 슬롯 0 — Session 3 §1.2의 더미 슬롯 — 에 씁니다).
-- 4090(24 GB급)의 기본 decode graph 최대 batch는 **48** (`arg_groups/memory_hook.py`). 그보다 큰 batch는 eager로 실행 → 서버 로그의 `cuda graph: False`. 큰 batch에서는 커널 하나가 충분히 길어서 launch overhead 비중이 작으므로 괜찮다는 판단입니다.
+- 4090(24 GB급) HTTP 서버의 기본 decode graph 최대 batch는 **48** (`arg_groups/memory_hook.py`). 실행 중 이 상한을 넘는 batch는 eager로 실행되며 서버 로그에 `cuda graph: False`가 표시됩니다.
+- 실습의 `one_batch`는 서버 없이 특정 모양을 비교하는 도구입니다. v0.5.23의 `benchmark/one_batch.py`에서 decode capture 상한을 `max(bench_args.batch_size)`로 지정합니다. 같은 GPU여도 이 도구가 녹화하는 목록은 HTTP 서버와 달라질 수 있습니다.
 - 시작 로그 `Capture target decode CUDA graph end. bs=[...] elapsed=… mem usage=…`에서 녹화한 batch 목록과 메모리를 확인할 수 있습니다.
 - **대가**: capture 시간(서버 시작이 느려짐), graph 버퍼 메모리(그만큼 KV pool이 작아짐), 동적인 기능과의 충돌(일부 sampling 옵션, LoRA 조합 등).
 - **왜 decode만?** prefill은 매번 길이가 달라 모양이 고정되지 않습니다. v0.5.23은 prefill에도 **"breakable" CUDA graph**(attention처럼 모양이 바뀌는 부분은 eager로 끊고, 나머지 구간만 녹화)를 CUDA에서 기본으로 켭니다 (`model_executor/cuda_graph_config.py: default_prefill_backend`).
@@ -443,7 +444,7 @@ NGRAM(📖): 체인 하나가 아니라 **후보 트리**(여러 갈래)를 한 
 3. `RadixAttention`은 껍데기, 실제 계산은 backend. KV 위치는 `req_to_token` → CSR(`kv_indptr`, `kv_indices`)로 커널에 전달.
 4. EXTEND는 compute-bound(FlashAttention), DECODE는 KV 읽기(flash-decoding, split-KV).
 5. decode step = CPU 준비 + launch overhead + weight 읽기 + KV 읽기 + sampling, ÷ step당 token 수.
-6. CUDA graph는 launch overhead 제거. 고정 모양, padding, 4090 max_bs 48, 큰 batch는 eager.
+6. CUDA graph는 launch overhead를 줄입니다. 서버는 실제 batch를 녹화 목록에 맞춰 padding하고, 상한을 넘으면 eager로 실행합니다. `one_batch`는 측정할 가장 큰 batch에 맞춰 capture합니다.
 7. FP8 weight는 작은 batch, FP8 KV는 긴 context·높은 동시성에 효과적.
 8. speculative: E = (1 − α^(k+1)) / (1 − α). 작은 batch·예측 가능한 출력에서 이득.
 
@@ -462,7 +463,7 @@ NGRAM(📖): 체인 하나가 아니라 **후보 트리**(여러 갈래)를 한 
 
 1. positions = [0..29 | 200..204], seq_lens = [30, 205], extend_seq_lens = [30, 5] → last_index = [29, 34].
 2. 하한 3.4 ms 대비 약 38%. CUDA graph가 꺼져 있는지(로그 `cuda graph: False`), 첫 step·JIT 포함 여부, 다른 프로세스가 GPU를 쓰는지 확인.
-3. 4090 기본 decode graph max_bs = 48. batch 64는 녹화된 크기를 넘어 eager로 실행된다.
+3. 4090 HTTP 서버의 기본 decode graph 상한은 48입니다. 시작 로그의 capture 목록과 실제 `#running-req`를 보면 상한을 넘긴 경우인지 확인할 수 있습니다.
 4. batch=1에서는 step bytes의 대부분이 weight → 절반이 되면 크게 빨라짐. batch=128에서는 KV 읽기(BF16 그대로)가 step bytes의 대부분이라 weight 절감 효과가 희석됨 (그리고 compute 비중 증가).
 5. (a) batch가 커서 verify step이 compute-bound → verify 비용이 일반 step의 여러 배 (b) CUDA graph max_bs가 작아(예: 8) 큰 batch에서 eager로 실행 (c) draft tree 구성·verify 커널 overhead.
 6. (1 − 0.8⁴)/(1 − 0.8) = (1 − 0.4096)/0.2 = 2.95
