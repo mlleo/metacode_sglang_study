@@ -1,0 +1,5 @@
+Capturing prefill shape (num_tokens=1024 avail_mem=22.21 GB):  33%|███▎      | 19/58 [00:02<00:02, 15.69it/s]
+Capturing prefill shape (num_tokens=240 avail_mem=22.14 GB):  62%|██████▏   | 36/58 [00:03<00:01, 18.94it/s]
+Capturing prefill shape (num_tokens=160 avail_mem=22.12 GB):  74%|███████▍  | 43/58 [00:03<00:00, 19.32it/s]
+Capturing prefill shape (num_tokens=64 avail_mem=22.10 GB):  81%|████████  | 47/58 [00:03<00:00, 19.39it/s]
+Capturing prefill shape (num_tokens=16 avail_mem=22.08 GB):  95%|█████████▍| 55/58 [00:04<00:00, 17.08it/s]

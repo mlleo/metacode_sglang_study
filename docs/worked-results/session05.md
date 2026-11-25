@@ -30,6 +30,10 @@ decode graph를 켜면 step마다 여러 CUDA 커널을 다시 요청하는 비�
 
 [실습 1–2](../../session05_execution/lab.md)와 [기본 과제](../../session05_execution/assignment.md)의 비교입니다.
 
+HTTP 서버에서 `bash common/launch.sh graph_limit --cuda-graph-max-bs-decode 48`로 별도 확인했습니다. `common/loadgen.py`에 `--num 128 --input-len 256 --output-len 256 --concurrency 16,64 --flush --tag graph_limit`를 넘겼습니다. 시작 로그의 capture 목록은 48까지였고, `Decode batch`의 실제 요청 16개에서 `cuda graph: True`, 64개에서 `False`를 봤습니다. 마치면 `bash common/stop.sh`로 서버를 종료합니다. [서빙 로그 발췌](data/s05_http_graph_limit.txt)
+
 ## 선택 실습에서 읽을 것
 
 FP8 weight는 로딩 로그의 weight 메모리를 3.28→1.92 GB로 줄였습니다. FP8 KV는 같은 모델 weight에서 `#tokens`를 579,196→1,158,393으로 늘렸습니다. 그런데 동시성 1의 ITL 중앙값은 BF16 2.27 ms, FP8 KV 2.38 ms였습니다. 저장할 수 있는 토큰 수와 한 step의 속도를 따로 봐야 합니다. `Load weight end`와 `KV Cache is allocated`에서 실제 dtype·용량을 확인하고, 부하 CSV의 `itl_ms_p50`과 `output_tok_per_s`를 같은 동시성끼리 비교합니다. [양자화 CSV](data/s05_quant.csv) · [메모리 로그 발췌](data/s05_quant_memory.txt)
+
+NGRAM은 두 서버의 메모리 비율을 0.7, decode graph 상한을 8로 맞췄습니다. 동시성 1에서 `per_req_decode_tok_per_s`는 반복적인 코드 출력에서 444→3,586, 창작 출력에서 447→418이었습니다. `completion_len_mean`은 두 경우 모두 400이었습니다. 먼저 같은 workload와 동시성의 CSV 행을 비교한 뒤, 서버 로그의 `accept len`으로 한 검증 step에 몇 토큰이 나왔는지 봅니다. 반복 구간에서는 15.12, 창작 구간에서는 1.18인 줄이 있었습니다. 이 발췌 값은 각 구간의 예시이며 전체 실행 평균은 아닙니다. 여러 토큰이 한 청크에 오면 클라이언트는 간격을 나눠 기록하므로 체감 출력 간격도 관심사라면 청크 도착 간격을 따로 잽니다. [NGRAM CSV](data/s05_spec.csv) · [서버 로그 발췌](data/s05_spec_excerpt.txt)

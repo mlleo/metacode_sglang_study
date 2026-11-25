@@ -1,0 +1,9 @@
+tag,workload,concurrency,per_req_decode_tok_per_s,itl_ms_p50,ttft_ms_p50,completion_len_mean
+off,repetitive,1,443.7361,2.2487,9.8579,400
+off,repetitive,8,391.8546,2.5314,28.681,400
+off,creative,1,447.2753,2.2377,9.5321,400
+off,creative,8,412.7257,2.4015,20.9303,400
+ngram,repetitive,1,3585.5595,0.2577,10.833,400
+ngram,repetitive,8,2599.4383,0.3496,30.2454,400
+ngram,creative,1,418.1349,2.109,10.6963,400
+ngram,creative,8,356.0224,1.5185,20.3804,400
