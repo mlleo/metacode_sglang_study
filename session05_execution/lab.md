@@ -72,8 +72,10 @@ python3 session05_execution/code/onebatch_to_csv.py results/s05_onebatch.jsonl
 | 128 | | | |
 
 - 배율이 batch가 커질수록 줄어드나요? 왜일까요? (커널 하나의 GPU 시간이 길어지면 launch overhead 비중↓)
-- **batch 128은 base에서도 CUDA graph를 안 쓸 수 있습니다** (4090 기본 max_bs = 48). 그렇다면 base와 nograph가 batch 128에서 비슷해야 합니다. 그런가요?
+- v0.5.23의 `one_batch`는 측정 목록의 가장 큰 batch에 맞춰 decode graph 상한을 올립니다. `logs/onebatch_base.log`의 `Capture target decode CUDA graph end. bs=`에 128이 있는지 확인하세요. HTTP 서버의 기본 상한과 따로 해석합니다.
 - Session 1의 "HF가 이론 하한보다 몇 배 느렸던 이유" 가설 중 무엇이 확인되었나요?
+
+서빙에서 상한을 확인하려면 강사 로그의 `Decode batch`에서 `#running-req`와 `cuda graph: True/False`를 함께 봅니다. 비교할 때 동시성과 그 순간의 실제 batch 크기를 구분하세요.
 
 ---
 
