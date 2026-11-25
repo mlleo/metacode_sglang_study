@@ -1,0 +1,3 @@
+input_len,token_usage_max,queue_req_max,running_req_max,sum_new_token
+512,0.17,18,128,474088
+2048,0.53,67,128,2148121

@@ -1,0 +1,12 @@
+=== data/s06_c32-DECODE.trace.json.gz
+  events 4,305  span 64.0 ms  summed GPU time 27.7 ms  GPU busy 43.2%
+  GPU 이벤트 시간 비율: gemm 58.4%  attention 24.2%  norm/act/rope 10.3%  memcpy/index 3.9%  other 2.2%  sampling 0.9%
+  시간이 긴 이벤트
+        6.37 ms  [    attention]  void cutlass::device_kernel<flash::enable_sm90_or_later<flash::FlashAttnFwdSm90<flash::Col
+        5.99 ms  [         gemm]  nvjet_sm90_tst_128x32_64x10_4x1_v_bz_TNT
+        3.17 ms  [         gemm]  nvjet_sm90_tst_64x32_64x16_4x1_v_bz_splitK_TNT
+        2.51 ms  [         gemm]  nvjet_sm90_tst_64x16_64x16_1x2_h_bz_TNT
+        2.23 ms  [         gemm]  nvjet_sm90_tst_384x32_64x4_2x1_v_bz_TNT
+        1.75 ms  [         gemm]  nvjet_sm90_tst_64x16_64x16_4x2_h_bz_TNT
+        1.40 ms  [norm/act/rope]  kernel_cutlass_kernel_flashinfernormkernelsfused_add_rmsnormFusedAddRMSNormKernel_object_a
+        0.68 ms  [ memcpy/index]  void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native:

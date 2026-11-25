@@ -1,0 +1,12 @@
+=== data/s06_c1_nograph-DECODE.trace.json.gz
+  events 3,925  span 290.6 ms  summed GPU time 21.4 ms  GPU busy 7.4%
+  GPU 이벤트 시간 비율: gemm 71.1%  attention 11.8%  norm/act/rope 11.6%  other 3.7%  memcpy/index 1.4%  sampling 0.4%
+  시간이 긴 이벤트
+        9.48 ms  [         gemm]  nvjet_sm90_tst_64x8_64x16_4x1_v_bz_TNT
+        3.15 ms  [         gemm]  nvjet_sm90_tst_64x8_64x16_2x1_v_bz_splitK_TNT
+        2.52 ms  [    attention]  void cutlass::device_kernel<flash::enable_sm90_or_later<flash::FlashAttnFwdSm90<flash::Col
+        2.14 ms  [         gemm]  nvjet_sm90_tst_384x8_64x4_2x1_v_bz_TNT
+        1.16 ms  [norm/act/rope]  kernel_cutlass_kernel_flashinfernormkernelsfused_add_rmsnormFusedAddRMSNormKernel_object_a
+        0.48 ms  [norm/act/rope]  void sglang::fused_rope_kernel<true, 128l, true, __nv_bfloat16, __nv_bfloat16, long, 16u>(
+        0.46 ms  [         gemm]  void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __nv_bfloat16
+        0.43 ms  [norm/act/rope]  void sglang::fused_qknorm_half_warp<true, __nv_bfloat16>(sglang::QKNormParams)

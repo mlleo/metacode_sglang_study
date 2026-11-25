@@ -1,0 +1,3 @@
+KV cache pool is full. Retract requests. #retracted_reqs: 1, #new_tokens_gained: 567, #new_token_ratio: 0.0980 -> 0.5439
+KV cache pool is full. Retract requests. #retracted_reqs: 1, #new_tokens_gained: 577, #new_token_ratio: 0.5349 -> 0.5537
+KV cache pool is full. Retract requests. #retracted_reqs: 1, #new_tokens_gained: 589, #new_token_ratio: 0.5427 -> 0.5654

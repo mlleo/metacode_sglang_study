@@ -1,0 +1,4 @@
+engine,batch,in_len,out_len,e2e_s,output_tok_per_s,peak_mem_gib
+hf_generate,1,512,64,0.951,67.3,3.32
+hf_generate,8,512,64,0.93,550.5,3.88
+hf_generate,32,512,64,1.096,1868.6,5.81

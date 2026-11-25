@@ -1,0 +1,4 @@
+engine,batch,in_len,out_len,e2e_s,output_tok_per_s,peak_mem_gib,ttft_ms_p50,itl_ms_p50
+sglang,1,512,64,0.151,423.5,,8.79,2.265
+sglang,8,512,64,0.194,2643.0,,27.07,2.543
+sglang,32,512,64,0.309,6620.5,,53.25,3.215

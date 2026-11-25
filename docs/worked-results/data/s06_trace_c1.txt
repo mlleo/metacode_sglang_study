@@ -1,0 +1,12 @@
+=== data/s06_c1-DECODE.trace.json.gz
+  events 3,875  span 33.5 ms  summed GPU time 21.2 ms  GPU busy 62.9%
+  GPU 이벤트 시간 비율: gemm 71.6%  attention 12.8%  norm/act/rope 11.5%  other 2.4%  memcpy/index 1.2%  sampling 0.5%
+  시간이 긴 이벤트
+        9.48 ms  [         gemm]  nvjet_sm90_tst_64x8_64x16_4x1_v_bz_TNT
+        3.10 ms  [         gemm]  nvjet_sm90_tst_64x8_64x16_2x1_v_bz_splitK_TNT
+        2.14 ms  [         gemm]  nvjet_sm90_tst_384x8_64x4_2x1_v_bz_TNT
+        2.02 ms  [    attention]  void cutlass::device_kernel<flash::enable_sm90_or_later<flash::FlashAttnFwdSm90<flash::Col
+        1.15 ms  [norm/act/rope]  kernel_cutlass_kernel_flashinfernormkernelsfused_add_rmsnormFusedAddRMSNormKernel_object_a
+        0.69 ms  [    attention]  void cutlass::device_kernel<flash::FlashAttnFwdCombine<cute::tuple<cute::C<8>, cute::C<128
+        0.51 ms  [norm/act/rope]  void sglang::fused_rope_kernel<true, 128l, true, __nv_bfloat16, __nv_bfloat16, long, 16u>(
+        0.47 ms  [         gemm]  void cublasLt::splitKreduce_kernel<32, 16, int, float, __nv_bfloat16, float, __nv_bfloat16
