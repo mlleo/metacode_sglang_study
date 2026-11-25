@@ -157,10 +157,13 @@ def main() -> None:
         }
         row.update(summarize(results, wall))
         print_row(row)
-        if args.out:
-            append_csv(args.out, row)
         if args.raw_dir:
             save_json(os.path.join(args.raw_dir, f"{args.tag}_c{c}.json"), results)
+        if row["num_errors"]:
+            error = next(r["error"] for r in results if r.get("error"))
+            p.exit(1, f"동시성 {c}: 요청 {len(results)}개 중 {row['num_errors']}개 실패. 첫 오류: {error}\n")
+        if args.out:
+            append_csv(args.out, row)
 
 
 if __name__ == "__main__":

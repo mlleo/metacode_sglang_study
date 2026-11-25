@@ -28,5 +28,9 @@ for R in $RATES; do
       exit 1
     }
   grep -E "Traffic request rate|Successful requests|Request throughput|Output token throughput|Median TTFT|P99 TTFT|Median ITL|Peak concurrent" "$LOG"
+  if [[ "$(awk '/^Successful requests:/ {print $3}' "$LOG")" != "$N" ]]; then
+    echo "요청 ${N}개가 모두 완료되지 않았습니다. $LOG를 확인하세요." >&2
+    exit 1
+  fi
 done
 echo "saved ${FILE}"

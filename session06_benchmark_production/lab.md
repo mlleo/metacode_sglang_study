@@ -36,7 +36,7 @@ done
 python3 session06_benchmark_production/code/repeat_stats.py results/s06_rep.csv --group tag
 ```
 
-- throughput의 CI 폭은 평균의 몇 %인가요? p99 TTFT는?
+- throughput과 p99 TTFT에서 `±` 뒤의 값은 각각 평균의 몇 %인가요? 출력의 괄호는 신뢰구간의 반폭을 평균으로 나눈 값입니다.
 - 이번 반복은 각 설정의 변동을 보는 실습입니다. 설정의 효과를 검정하려면 같은 조건끼리 짝지어 차이를 구하거나, 독립 두 표본의 차이 구간을 계산합니다.
 - 옆 사람(다른 Pod, 같은 4090)과 c16 평균 throughput을 비교해 보세요. 호스트 간 차이는 반복 내 차이보다 큰가요?
 

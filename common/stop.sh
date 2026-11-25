@@ -5,16 +5,20 @@ cd "$(dirname "$0")/.."
 source common/env.sh
 
 PID_FILE="${LOG_DIR}/server.pid"
+has_live_server() {
+  ps -s "$PID" -o stat=,args= | awk '$1 !~ /^Z/ && /sglang([.:]|_server)/ { live = 1 } END { exit !live }'
+}
+
 if [ -s "$PID_FILE" ]; then
   read -r PID < "$PID_FILE"
-  if [[ ! "$PID" =~ ^[1-9][0-9]+$ ]]; then
+  if [[ ! "$PID" =~ ^[1-9][0-9]*$ || "$PID" == 1 ]]; then
     echo "[오류] 잘못된 서버 PID: $PID_FILE" >&2
     exit 1
   fi
-  if pgrep -s "$PID" -f 'sglang([.:]|_server)' >/dev/null; then
+  if has_live_server; then
     pkill -TERM -s "$PID" || true
     for i in $(seq 1 30); do
-      if ! pgrep -s "$PID" -f 'sglang([.:]|_server)' >/dev/null; then
+      if ! has_live_server; then
         break
       fi
       sleep 1

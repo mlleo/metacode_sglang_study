@@ -32,5 +32,9 @@ for C in $CONCS; do
     }
   grep -E "Successful requests|Max request concurrency|Request throughput|Output token throughput|Median TTFT|P99 TTFT|Median ITL|P99 ITL" \
     "${LOG_DIR}/bench_${TAG}_c${C}.log"
+  if [[ "$(awk '/^Successful requests:/ {print $3}' "${LOG_DIR}/bench_${TAG}_c${C}.log")" != "$N" ]]; then
+    echo "요청 ${N}개가 모두 완료되지 않았습니다. ${LOG_DIR}/bench_${TAG}_c${C}.log를 확인하세요." >&2
+    exit 1
+  fi
 done
 echo "saved ${FILE}"
