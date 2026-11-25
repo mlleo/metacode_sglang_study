@@ -1,4 +1,4 @@
-=== data/s06_c32-DECODE.trace.json.gz
+전체 10-step DECODE trace — c32
   events 4,305  span 64.0 ms  summed GPU time 27.7 ms  GPU busy 43.2%
   GPU 이벤트 시간 비율: gemm 58.4%  attention 24.2%  norm/act/rope 10.3%  memcpy/index 3.9%  other 2.2%  sampling 0.9%
   시간이 긴 이벤트

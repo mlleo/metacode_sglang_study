@@ -1,0 +1,7 @@
+batch,tokens_per_s,scope
+1,24.8,HF decode forwards
+8,196.8,HF decode forwards
+32,768.2,HF decode forwards
+1,423.5,SGLang request wall time
+8,2643.0,SGLang request wall time
+32,6620.5,SGLang request wall time

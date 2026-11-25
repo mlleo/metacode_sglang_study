@@ -28,7 +28,7 @@
 
 75% 공유에서 처리량은 약 1.40배가 됐고, 첫 토큰 지연은 절반 이하로 내려갔습니다. 입력을 덜 계산해도 생성 중에는 계속 KV를 읽습니다. shared prefix가 75%인데 hit가 69.1%인 이유로, 첫 요청들이 동시에 prefill에 들어간 구간을 확인할 수 있습니다.
 
-[과제 그래프](figures/s03_assignment_prefix.png) · [부하 CSV](data/s03_share.csv)
+[부하 CSV](data/s03_share.csv)
 
 ## 재현
 
@@ -39,3 +39,7 @@
 1. 한 요청에서 `meta_info.cached_tokens`를 `prompt_tokens`와 비교하고, 서버 로그의 `#new-token + #cached-token`으로 확인합니다. 같은 prefix를 유지하고 suffix만 다르게 보내면 어느 지점까지 재사용했는지 드러납니다.
 2. 동시성 실험은 [부하 CSV](data/s03_share.csv)에서 `shared_prefix_len + input_len = 2048`인지 확인합니다. `cache_hit_rate`는 실제로 재사용한 입력 토큰 비율입니다. 설정한 공유율 75%와 비교해 첫 batch의 miss 가능성을 설명합니다.
 3. `ttft_ms_p50` 개선 배율과 `output_tok_per_s` 개선 배율을 따로 냅니다. 두 값이 다르면 decode가 남아 있다는 설명을 붙일 수 있습니다. 그 설명을 더 검증하려면 출력 길이를 하나 더 골라 같은 방식으로 재거나, 75% 공유를 그대로 두고 cache만 끕니다.
+
+## 선택 실습에서 읽을 것
+
+24,000-token pool에서 LPM과 FCFS는 각각 256개 요청을 완료했습니다. 서버 로그의 cache hit 비율은 83.5%와 45.5%였고, 처리량은 약 5,074와 2,489 tok/s였습니다. `sum_new_token`도 97,323과 321,682로 방향이 맞습니다. 같은 workload에서 대기 순서가 달라져 prefill 재사용량도 달라진 결과입니다. p99 TTFT는 이 실행에서 각각 2,375와 2,492 ms였으므로, LPM이 언제나 tail을 늦춘다고 결론 내릴 수 없습니다. 공유 종류와 부하를 바꿔 다시 확인할 수 있습니다. [정책별 CSV](data/s03_policy.csv)

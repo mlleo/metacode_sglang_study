@@ -1,4 +1,4 @@
-=== data/s06_c1_nograph-DECODE.trace.json.gz
+전체 10-step DECODE trace — c1_nograph
   events 3,925  span 290.6 ms  summed GPU time 21.4 ms  GPU busy 7.4%
   GPU 이벤트 시간 비율: gemm 71.1%  attention 11.8%  norm/act/rope 11.6%  other 3.7%  memcpy/index 1.4%  sampling 0.4%
   시간이 긴 이벤트

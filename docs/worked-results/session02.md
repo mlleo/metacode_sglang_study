@@ -2,7 +2,7 @@
 
 ## 실습에서 확인한 값
 
-긴 요청 A가 실행 중일 때 짧은 B와 C가 합류해 먼저 끝났습니다. E는 A가 거의 끝날 무렵 도착해 나중에 끝났습니다. 타임라인에서 A의 종료를 기다린 요청과 실행 중 합류한 요청을 구분할 수 있습니다. [시간차 도착 그림](figures/s02_staggered.png)
+긴 요청 A가 실행 중일 때 짧은 B와 C가 합류해 먼저 끝났습니다. E는 A가 거의 끝날 무렵 도착해 나중에 끝났습니다. 타임라인에서 A의 종료를 기다린 요청과 실행 중 합류한 요청을 구분할 수 있습니다. 이 실행에서 A는 0.00→1.20초, B는 0.30→0.46초, E는 1.20→1.36초였습니다.
 
 첫 요청은 HTTP/TokenizerManager에서 토큰화되고, Scheduler가 prefill batch에 넣습니다. 토큰이 생성되면 DetokenizerManager를 거쳐 스트림으로 돌아옵니다. 첫 토큰까지의 경로가 TTFT에 포함되고, 이후의 decode·detokenize·전송 차이가 ITL에 나타납니다. [SGLang 코드 지도](../code_map.md)
 
@@ -19,7 +19,7 @@
 
 2,048 입력에서는 입력당 prefill 계산과 KV 슬롯이 함께 늘었습니다. 같은 서버의 실험 구간을 나누고 `common/logparse.py`로 요약하니 `token_usage_max`가 0.17→0.53, `queue_req_max`가 18→67이었습니다. pool에 여유가 남은 동안에도 대기가 생겼으므로 KV 고갈 하나로 설명하기 어렵습니다. 동시성 64·128에서 긴 prefill과 대기가 언제 겹쳤는지 로그를 읽으면 다음 비교점을 잡을 수 있습니다. [스케줄러 로그 집계](data/s02_scheduler.csv)
 
-[동시성–처리량](figures/s02_assignment_throughput.png) · [처리량–p95 TTFT](figures/s02_assignment_latency.png) · [512 CSV](data/s02_base.csv) · [2048 CSV](data/s02_in2k.csv)
+[512 CSV](data/s02_base.csv) · [2048 CSV](data/s02_in2k.csv)
 
 ## 재현
 

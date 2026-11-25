@@ -26,7 +26,7 @@ Qwen3-1.7B 예시 계산은 `2 × 28 × 8 × 128 × 2 = 114688 B/token`입니다
 
 SGLang TTFT 중앙값은 입력 128·512·2,048에서 7.57·7.59·14.57 ms였습니다. 128에서 512로 늘어난 구간은 차이가 작습니다. 입력 길이별 요청이 세 개뿐이라 작은 차이까지 해석하려면 측정을 반복합니다.
 
-[배치별 처리량](figures/s01_assignment_batch.png) · [입력 길이별 지연](figures/s01_assignment_input.png) · [HF 수동 CSV](data/s01_manual.csv) · [HF generate CSV](data/s01_hf.csv) · [SGLang CSV](data/s01_sglang.csv) · [TTFT CSV](data/s01_ttft_vs_inlen.csv)
+[배치별 그래프 입력](data/s01_plot_batch.csv) · [입력 길이별 그래프 입력](data/s01_plot_input.csv) · [HF 수동 CSV](data/s01_manual.csv) · [HF generate CSV](data/s01_hf.csv) · [SGLang CSV](data/s01_sglang.csv) · [TTFT CSV](data/s01_ttft_vs_inlen.csv)
 
 ## 재현
 

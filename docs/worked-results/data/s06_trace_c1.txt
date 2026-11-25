@@ -1,4 +1,4 @@
-=== data/s06_c1-DECODE.trace.json.gz
+전체 10-step DECODE trace — c1
   events 3,875  span 33.5 ms  summed GPU time 21.2 ms  GPU busy 62.9%
   GPU 이벤트 시간 비율: gemm 71.6%  attention 12.8%  norm/act/rope 11.5%  other 2.4%  memcpy/index 1.2%  sampling 0.5%
   시간이 긴 이벤트

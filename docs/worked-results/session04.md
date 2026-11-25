@@ -11,7 +11,7 @@
 | 16,000 | OFF | 3.70 | 151.82 | 161.49 |
 | 16,000 | ON | 9.90 | 14.02 | 167.26 |
 
-[실습·과제 SLO 그림](figures/s04_assignment_slo.png) · [실습 ITL 타임라인](figures/s04_itl_timeline.png) · [16K CSV](data/s04_interference.csv) · [8K CSV](data/s04_homework_interference.csv)
+[16K CSV](data/s04_interference.csv) · [8K CSV](data/s04_homework_interference.csv)
 
 ## 어떤 값으로 결론을 내렸나
 
@@ -26,7 +26,7 @@
 
 ## 재현
 
-[실습 2](../../session04_scheduler/lab.md)와 [과제 B](../../session04_scheduler/assignment.md)를 실행했습니다. [OFF 타임라인 JSON](data/s04_timeline_chunk1024.json)과 [ON 타임라인 JSON](data/s04_timeline_chunk1024mx.json)을 `plot_timeline.py`에 넣으면 기존 스트림의 공백을 다시 그릴 수 있습니다.
+[실습 2](../../session04_scheduler/lab.md)와 [과제 B](../../session04_scheduler/assignment.md)를 실행했습니다. [OFF 타임라인 JSON](data/s04_timeline_chunk1024.json)과 [ON 타임라인 JSON](data/s04_timeline_chunk1024mx.json)은 긴 요청 도착 전후 기존 스트림 한 개를 기록한 발췌입니다. 두 파일을 `plot_timeline.py`에 넣으면 같은 요청 번호의 공백을 비교할 수 있습니다. 표의 p99와 최대값은 전체 16개 스트림을 집계했습니다.
 
 ## 강사 시연 retraction 로그
 
