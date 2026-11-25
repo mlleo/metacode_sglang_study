@@ -129,7 +129,7 @@ bash session02_architecture_batching/code/sweep_rate.sh rate "4 8 12 16 20 24" 5
 python3 session02_architecture_batching/code/bench_to_csv.py results/s02_rate.jsonl --tag rate
 ```
 
-- 도착률이 용량을 넘는 순간 median TTFT는 어떻게 되나요? (선형으로 늘지 않고 **폭발**해야 합니다)
+- 도착률을 높일수록 실제 완료율은 계속 따라가나요? median TTFT가 크게 변하지 않으면 p95 ITL·E2E와 동시 실행 수에서 부담이 나타났는지 보세요. 짧은 sweep에서는 과부하에서 대기열이 얼마나 오래 커지는지 판단하기 어렵습니다.
 - `Peak concurrent requests`는 도착률에 따라 어떻게 변하나요? 안정 상태의 평균 동시성은 Little's law로 확인하고, 순식간의 최고값과 구분하세요.
 - closed-loop 동시성 64와 open-loop 용량 근처의 결과를 비교하면, 같은 throughput에서 TTFT가 같나요?
 
