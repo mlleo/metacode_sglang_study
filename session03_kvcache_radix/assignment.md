@@ -57,9 +57,9 @@ bash common/stop.sh
 제출:
 
 1. 그래프: 공유 비율 → output throughput, p50 TTFT (두 subplot)
-2. 각 조건의 `cache_hit_rate`(CSV)와 이론값 (공유 비율 × (요청 수 − 1) / 요청 수 근처)의 비교
+2. 각 조건의 `cache_hit_rate`를 비교하세요. 첫 요청 뒤에 나머지가 모두 hit한다고 가정한 상한은 공유 비율 × (요청 수 − 1) / 요청 수입니다. 동시에 들어온 첫 batch에서는 이보다 작을 수 있습니다.
 3. 해석: 공유 비율 75%일 때 throughput이 몇 배 늘었나요? **TTFT 개선 폭과 throughput 개선 폭이 다르다면** 왜일까요?
-   (힌트: 출력 128 token의 decode는 캐시와 무관하다. Session 1 §3, §5)
+   (힌트: prefix hit가 아끼는 것은 주로 prefill입니다. 생성 중에는 KV를 계속 읽습니다. Session 1 §3, §5)
 4. 선택 대조군을 실행했다면 공유 75%에서 cache ON/OFF를 비교하세요. ON 상태의 공유 0%와 비교할 때는 prefix 구성도 함께 바뀐다는 점을 적습니다.
 
 ## Part C. 선택 실험 (하나 골라서, GPU $0.3 이내)

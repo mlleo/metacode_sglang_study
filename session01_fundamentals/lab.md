@@ -20,7 +20,7 @@
 
 ```bash
 cd /workspace
-git clone https://github.com/<your-id>/metacode_sglang_study.git
+git clone --branch main https://github.com/mlleo/metacode_sglang_study.git
 cd metacode_sglang_study
 bash common/setup_pod.sh          # 끝나면 logs/env.txt 생성
 ```
@@ -74,7 +74,7 @@ weights = 3.44 GB → batch=1 decode 이론 하한 ≈ 3.41 ms/step (대역폭 1
 ## 2. HF `generate()` 기준선 (8분)
 
 ```bash
-python3 session01_fundamentals/code/hf_generate_baseline.py --batches 1,8,32 --out results/s01_hf.csv
+python3 session01_fundamentals/code/hf_generate_baseline.py --batches 1,8,32 --out-len 64 --out results/s01_hf.csv
 ```
 
 | batch | e2e_s | output_tok_per_s | peak_mem_gib |
@@ -83,7 +83,7 @@ python3 session01_fundamentals/code/hf_generate_baseline.py --batches 1,8,32 --o
 | 8 | | | |
 | 32 | | | |
 
-- `peak_mem_gib`이 batch에 따라 어떻게 늘어나나요? 늘어난 만큼을 KV 공식(112 KiB × batch × 640 token)으로 설명할 수 있나요?
+- `peak_mem_gib`이 batch에 따라 어떻게 늘어나나요? 늘어난 만큼을 KV 공식(112 KiB × batch × 약 576 token)으로 설명할 수 있나요?
 - 이 숫자는 **"32개 요청이 정확히 같은 순간, 같은 길이로 도착했다"** 는 비현실적으로 유리한 조건입니다. 실제 서비스에선 요청이 제각각 도착합니다. 그럼 `generate()`는 어떻게 해야 할까요? (→ Session 2)
 
 이제 HF 모델이 GPU 메모리를 잡고 있지 않은지 확인하세요 (스크립트가 끝나면 해제됩니다):

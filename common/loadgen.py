@@ -26,7 +26,6 @@ import argparse
 import os
 import random
 import sys
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional, Tuple
@@ -72,14 +71,19 @@ def run_requests(
 ) -> Tuple[List[Dict], float]:
     """요청들을 보내고 (결과 리스트, 총 소요 시간)을 돌려준다.
 
-    concurrency    : 동시에 열려 있을 수 있는 최대 요청 수 (closed-loop 상한)
-    request_rate   : None이면 가능한 한 빨리 투입. 숫자면 초당 평균 도착 수 (Poisson, open-loop)
+    concurrency    : 동시에 보낼 수 있는 HTTP 요청 수
+    request_rate   : None이면 빈 worker에 바로 투입. 숫자면 worker와 별도로 Poisson 도착을 예약
+    t_arrival_rel  : 유한 도착률에서 클라이언트에 도착할 예정이었던 시각 (초)
+                     HTTP TTFT는 t_start부터 재므로 클라이언트 대기 시간은 따로 계산한다.
     """
+    if concurrency < 1:
+        raise ValueError("concurrency must be at least one")
+    if request_rate is not None and request_rate <= 0:
+        raise ValueError("request_rate must be positive")
     rng = random.Random(seed)
-    sem = threading.Semaphore(concurrency)
     results: List[Optional[Dict]] = [None] * len(reqs)
 
-    def worker(i: int, spec: Dict) -> None:
+    def worker(i: int, spec: Dict, arrival: Optional[float]) -> None:
         try:
             r = generate(
                 input_ids=spec.get("input_ids"),
@@ -90,19 +94,22 @@ def run_requests(
             r.pop("text", None)
             r.pop("token_times", None)  # 요약에는 불필요 (크기만 큼)
             r.update({k: v for k, v in spec.items() if k not in ("input_ids", "prompt")})
+            if arrival is not None:
+                r["t_arrival_rel"] = arrival
             results[i] = r
         except Exception as e:  # 실패도 기록해야 분포가 왜곡되지 않는다
             results[i] = {"error": repr(e), "idx": i}
-        finally:
-            sem.release()
 
     t0 = time.perf_counter()
-    with ThreadPoolExecutor(max_workers=max(concurrency, 1)) as pool:
+    elapsed_until_arrival = 0.0
+    with ThreadPoolExecutor(max_workers=concurrency) as pool:
         for i, spec in enumerate(reqs):
-            if request_rate:
-                time.sleep(rng.expovariate(request_rate))
-            sem.acquire()
-            pool.submit(worker, i, spec)
+            if request_rate is None:
+                pool.submit(worker, i, spec, None)
+            else:
+                elapsed_until_arrival += rng.expovariate(request_rate)
+                time.sleep(max(0.0, t0 + elapsed_until_arrival - time.perf_counter()))
+                pool.submit(worker, i, spec, elapsed_until_arrival)
     wall = time.perf_counter() - t0
     for r in results:
         if r and "t_start" in r:
@@ -133,9 +140,8 @@ def main() -> None:
         run_requests(warm, concurrency=args.warmup, url=args.url)
 
     for c in [int(x) for x in args.concurrency.split(",")]:
-        if args.flush:
-            flush_cache(args.url)
-            time.sleep(0.5)
+        if args.flush and not flush_cache(args.url):
+            p.exit(1, "cache를 비우지 못해 측정을 중단했습니다. 서버 로그를 확인하세요.\n")
         # 동시성 값마다 고유 부분의 seed를 바꾼다. 같은 seed를 쓰면 두 번째 측정부터
         # 이전 측정의 KV가 radix cache에 남아 있어 '공짜' cache hit이 섞인다.
         # (공유 prefix는 seed와 무관하게 항상 같다 → prefix 실험에는 영향 없음)

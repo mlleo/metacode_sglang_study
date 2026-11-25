@@ -43,7 +43,7 @@ RunPod Community Cloud 호스트는 driver 버전이 제각각입니다.
 
    ```bash
    cd /workspace
-   git clone https://github.com/<your-id>/metacode_sglang_study.git
+   git clone --branch main https://github.com/mlleo/metacode_sglang_study.git
    cd metacode_sglang_study
    bash common/setup_pod.sh      # 3–8분: SGLang 0.5.23 설치 + 모델 다운로드
    ```

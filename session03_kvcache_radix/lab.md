@@ -29,6 +29,15 @@ python3 session03_kvcache_radix/code/radix_sim.py ABCDE ABCXY ABQRS --capacity 9
 
 ## 1. KV pool 크기: 손계산 vs 실측 (10분)
 
+새 Pod라면 실습 저장소를 받고 환경을 준비합니다. 로컬 시뮬레이터는 계속 로컬에서 실행합니다.
+
+```bash
+cd /workspace
+git clone --branch main https://github.com/mlleo/metacode_sglang_study.git
+cd metacode_sglang_study
+bash common/setup_pod.sh
+```
+
 ```bash
 bash common/launch.sh baseline
 grep -E "Load weight end|KV Cache is allocated|max_total_num_tokens=" logs/server_baseline.log

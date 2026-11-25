@@ -10,6 +10,7 @@ H100 한 장에서 설치, 실행, 결과 파일을 먼저 확인하고, 수강�
 # 리허설할 커밋의 저장소 루트
 export CUDA_VISIBLE_DEVICES=0
 export PORT=30123
+source common/env.sh
 bash common/setup_pod.sh
 
 # Session 1 · HF forward, Session 1–3 · HTTP, batching, prefix
@@ -42,7 +43,7 @@ RTX 4090 Pod에서는 수강생과 같은 이미지로 아래 항목을 확인�
 | 1 | 새 Pod 준비 시간, HF와 SGLang 실행 및 결과 내려받기 |
 | 2 | 필수 sweep 소요 시간과 로그, 두 p95 열과 완료 요청 수 |
 | 3 | 자동 설정으로 선택된 pool 크기와 page size, 반복 요청의 `cached_tokens` |
-| 4 | 두 조건의 실제 overlap, retraction 예시 로그 확보, 짧은 ITL 최대값 비교 |
+| 4 | 두 조건의 실제 overlap, retraction 예시 로그 확보, 최대 ITL과 긴 요청 TTFT 비교 |
 | 5 | 기본 graph가 적용되는 batch 크기, CUDA graph ON/OFF. 선택 FP8 실습은 4090에서 별도 확인 |
 | 6 | trace 다운로드와 비용 분석. ON/OFF trace와 Session 2 기준 CSV를 수업 전에 준비 |
 

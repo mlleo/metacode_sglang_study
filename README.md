@@ -46,7 +46,7 @@
 
 - 실행 전에 결과를 **숫자로 예측**하고, 틀리면 왜 틀렸는지 찾는다
 - 변수 하나만 바꾸고, warm-up · cache 상태 · 반복 횟수 · 신뢰구간을 챙긴다
-- 평균이 아니라 p99를 보고, 벤치마크 설정 자체가 시스템 동작을 바꿀 수 있음을 의심한다
+- 지연의 중앙값과 꼬리를 함께 보고, 요청 수가 적을 때 p99를 얼마나 믿을 수 있는지 판단한다
 - 결과를 "I expected → I changed → I measured → I found" 4문장으로 설명하고 재현 가능하게 공개한다
 
 ### 이 스터디의 범위 밖
@@ -97,8 +97,8 @@ sessionNN_xxx/
 ## 빠른 시작 (수강생)
 
 ```bash
-# 0) 로컬(노트북)에서: 레포 fork → clone
-git clone https://github.com/<your-id>/metacode_sglang_study.git
+# 0) 로컬(노트북)에 실습 자료 받기
+git clone --branch main https://github.com/mlleo/metacode_sglang_study.git
 cd metacode_sglang_study
 
 # 1) 로컬에서 GPU 없이 스크립트 디버깅 (mock 서버) — GPU 비용 0원
@@ -106,7 +106,7 @@ python3 common/mock_server.py &                 # 가짜 SGLang 서버
 python3 common/client.py --input-len 512        # 측정 클라이언트가 잘 도는지 확인
 
 # 2) RunPod Pod 안에서 (docs/runpod_guide.md 참고)
-git clone https://github.com/<your-id>/metacode_sglang_study.git && cd metacode_sglang_study
+git clone --branch main https://github.com/mlleo/metacode_sglang_study.git && cd metacode_sglang_study
 bash common/setup_pod.sh                       # driver 확인, SGLang 0.5.23 설치, 모델 다운로드
 bash common/launch.sh baseline                 # 서버 시작 (logs/server_baseline.log)
 python3 common/client.py --prompt "The capital of France is" --allow-eos
@@ -144,7 +144,5 @@ bash common/stop.sh
 1. **"왜"를 공부한다.** 플래그 이름을 외우지 말고, 그 플래그가 없으면 무엇이 반복 계산되는지 설명한다.
 2. **모든 주장에는 측정값이 있다.** "빨라진 것 같다" ❌ → "p50 TTFT 412 ms → 96 ms" ✅
 3. **한 번에 변수 하나만 바꾼다.** GPU·모델·입출력 길이·동시성·sampling을 고정하고 하나만 바꾼다.
-4. **GPU는 측정 장비다.** 코드는 로컬에서 mock 서버로 다 짜 오고, Pod에서는 실행·저장·종료만 한다.
-5. **예측 먼저, 측정은 나중에.** 실행 전에 결과를 숫자로 예측하고 적는다. 틀린 예측이 가장 많이 가르친다.
-
-> Build less. Measure more. Understand why.
+4. **GPU 시간은 측정에 쓴다.** 코드는 로컬 mock 서버에서 준비하고, 그래프와 보고서는 Pod를 종료한 뒤 만든다.
+5. **예측 먼저, 측정은 나중에.** 실행 전에 결과를 숫자로 적고, 측정 뒤 예상과 달랐던 이유를 기록한다.

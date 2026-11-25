@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# chunked prefill 설정을 바꿔 가며 interference.py를 반복한다. (서버를 5번 띄움, 약 10–12분)
+# chunked prefill 설정을 바꿔 가며 interference.py를 반복한다. 수업은 서버를 두 번 띄운다.
 #
 #   bash session04_scheduler/code/interference_sweep.sh  # 수업용 두 설정
 #   bash session04_scheduler/code/interference_sweep.sh nochunk chunk4096 chunk1024 chunk1024mx chunk1024pd
 #   AGGRESSOR_IN=8000 bash session04_scheduler/code/interference_sweep.sh chunk1024 chunk1024mx
 #
 #   nochunk     : --chunked-prefill-size -1        (청크 없음: 16K prefill을 한 번에)
-#   chunk4096   : 기본값 (RTX 4090에서 자동으로 4096)
+#   chunk4096   : --chunked-prefill-size 4096
 #   chunk1024   : --chunked-prefill-size 1024
 #   chunk1024mx : --chunked-prefill-size 1024 --enable-mixed-chunk  (prefill 조각과 decode를 한 batch에 섞기)
 #   chunk1024pd : --chunked-prefill-size 1024 --prefill-decode-interval 1  (prefill 조각 뒤 decode 1번 보장)

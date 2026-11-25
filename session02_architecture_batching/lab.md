@@ -16,7 +16,7 @@
 ## 0. 준비
 
 ```bash
-cd /workspace && git clone https://github.com/<your-id>/metacode_sglang_study.git && cd metacode_sglang_study
+cd /workspace && git clone --branch main https://github.com/mlleo/metacode_sglang_study.git && cd metacode_sglang_study
 bash common/setup_pod.sh
 bash common/launch.sh baseline
 ```
