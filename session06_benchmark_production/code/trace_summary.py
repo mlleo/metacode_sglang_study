@@ -81,9 +81,12 @@ def summarize(paths: list) -> dict:
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("dirs", nargs="+", help="trace 파일이 든 폴더 또는 파일")
+    p.add_argument("--stage", choices=("decode", "extend"), help="파일 이름의 stage 접미사로 trace 선택")
     args = p.parse_args()
     for d in args.dirs:
         paths = [d] if os.path.isfile(d) else sorted(glob.glob(os.path.join(d, "**", "*.json*"), recursive=True))
+        if args.stage:
+            paths = [path for path in paths if f"-{args.stage}.trace.json" in os.path.basename(path).lower()]
         if not paths:
             print(f"[{d}] trace 파일 없음")
             continue

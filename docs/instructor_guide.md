@@ -28,7 +28,7 @@ BS="1 16" bash session05_execution/code/onebatch_sweep.sh base
 BS="1 16" bash session05_execution/code/onebatch_sweep.sh nograph --cuda-graph-backend-decode disabled
 python3 session05_execution/code/onebatch_to_csv.py results/s05_onebatch.jsonl
 bash session06_benchmark_production/code/profile_decode.sh c1 1
-python3 session06_benchmark_production/code/trace_summary.py profiles/c1
+python3 session06_benchmark_production/code/trace_summary.py profiles/c1 --stage decode
 python3 session06_benchmark_production/code/cost_calc.py results/s02_rehearsal.csv \
   --usd-per-hour 0.60 --throughput output_throughput --load max_concurrency \
   --slo p95_ttft_ms=500 --slo p95_itl_ms=50

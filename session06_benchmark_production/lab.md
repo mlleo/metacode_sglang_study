@@ -50,7 +50,7 @@ python3 session06_benchmark_production/code/repeat_stats.py results/s06_rep.csv 
 
 ```bash
 bash session06_benchmark_production/code/profile_decode.sh c1 1
-python3 session06_benchmark_production/code/trace_summary.py profiles/c1
+python3 session06_benchmark_production/code/trace_summary.py profiles/c1 --stage decode
 ```
 
 graph OFF와 동시성 32는 강사가 같은 환경에서 재어 둔 trace를 사용합니다. 직접 재려면 아래 명령을 사용하세요.
@@ -66,7 +66,7 @@ bash session06_benchmark_production/code/profile_decode.sh c32 32
 | c32 | | | | |
 | c1_nograph | | | | |
 
-그다음 trace 파일 하나를 로컬로 내려받아 <https://ui.perfetto.dev>에 끌어다 놓으세요. 스크립트가 보여 준 경로 아래 `run.*` 폴더에 있습니다. 비교 자료가 있다면 graph OFF trace부터 읽습니다.
+그다음 이름에 `-DECODE.trace.json.gz`가 붙은 파일 하나를 로컬로 내려받아 <https://ui.perfetto.dev>에 끌어다 놓으세요. 스크립트가 보여 준 `run.*` 폴더에 있습니다. 비교 자료가 있다면 graph OFF trace부터 읽습니다.
 
 - GPU 줄에서 커널 사이의 **빈칸**을 찾으세요. c1_nograph에서 더 넓은가요?
 - CPU 줄에서 `cudaLaunchKernel`이 촘촘히 찍힌 구간과, `cudaGraphLaunch` 한 번으로 끝나는 구간(c1)을 비교하세요.

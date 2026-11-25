@@ -16,31 +16,23 @@ PROFILE_ROOT="${STUDY_ROOT}/profiles/${TAG}"
 mkdir -p "$PROFILE_ROOT"
 OUT_DIR=$(mktemp -d "${PROFILE_ROOT}/run.XXXXXX")
 
-bash common/launch.sh "prof_${TAG}" "$@"
+SGLANG_PROFILE_BY_STAGE_DECODE_MIN_BS="$CONC" bash common/launch.sh "prof_${TAG}" "$@"
 trap 'bash common/stop.sh > /dev/null' EXIT
 
-# 1) 배경 부하: decode가 길게 이어지도록 출력 2048
-python3 common/loadgen.py --num "$CONC" --concurrency "$CONC" --input-len 256 --output-len 2048 \
-  --warmup 0 --tag "prof_${TAG}" > /dev/null &
-LOAD_PID=$!
-sleep "${PROFILE_DELAY:-0.8}"
-if ! kill -0 "$LOAD_PID" 2>/dev/null; then
-  echo "프로파일 시작 전에 부하가 끝났습니다. PROFILE_DELAY를 줄여 다시 실행하세요." >&2
-  exit 1
-fi
+# 부하를 보내기 전에 단계를 지정한다. capture는 decode batch 크기가 CONC에 닿은 뒤 시작한다.
+curl -fsS --max-time 30 -X POST "${SGLANG_URL}/start_profile" -H "Content-Type: application/json" \
+  -d "{\"output_dir\": \"${OUT_DIR}\", \"num_steps\": 10, \"activities\": [\"CPU\", \"GPU\"], \"profile_by_stage\": true}"
+python3 common/loadgen.py --num "$CONC" --concurrency "$CONC" --input-len 256 --output-len 128 \
+  --warmup 0 --tag "prof_${TAG}"
 
-# 2) decode step 10개 녹화 (끝나면 자동 정지)
-curl -fsS -X POST "${SGLANG_URL}/start_profile" -H "Content-Type: application/json" \
-  -d "{\"output_dir\": \"${OUT_DIR}\", \"num_steps\": 10, \"activities\": [\"CPU\", \"GPU\"]}"
-wait "$LOAD_PID"
 for i in $(seq 1 20); do
-  if find "$OUT_DIR" -type f -name '*.trace.json*' -size +0c -print -quit | grep -q .; then
+  if find "$OUT_DIR" -type f -iname '*-decode.trace.json*' -size +0c -print -quit | grep -q .; then
     break
   fi
   sleep 1
 done
-if ! find "$OUT_DIR" -type f -name '*.trace.json*' -size +0c -print -quit | grep -q .; then
-  echo "trace 파일이 생성되지 않았습니다. logs/server_prof_${TAG}.log를 확인하세요." >&2
+if ! find "$OUT_DIR" -type f -iname '*-decode.trace.json*' -size +0c -print -quit | grep -q .; then
+  echo "decode trace가 생성되지 않았습니다. logs/server_prof_${TAG}.log에서 실제 decode batch 크기와 profiler 상태를 확인하세요." >&2
   exit 1
 fi
 echo "trace files:"
