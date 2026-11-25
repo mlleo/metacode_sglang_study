@@ -35,3 +35,7 @@
 세 조건에서 출력은 모두 1,024 token이었고, fixed의 `sum_new_token`은 3,843인 데 비해 EOS 두 조건은 22,737과 22,631이었습니다. `sum_new_token`은 prefill한 전체 토큰입니다. 다시 prefill한 요청이 있는지는 `Retract requests` 직후의 `Prefill batch`와 함께 읽습니다. 이번 실행에서 보수성 2.0은 retraction을 거의 줄이지 못했습니다. 초기 예약만 보고 마지막까지 그 상태가 유지된다고 가정하면 놓치는 부분입니다.
 
 [재할당 로그 발췌](data/s04_retraction_excerpt.txt) · [스케줄러 집계](data/s04_retraction_log_summary.txt) · [부하 결과 CSV](data/s04_retract.csv)
+
+## 선택 실습에서 overlap scheduling 읽기
+
+Qwen3-0.6B에서 동시성 16을 비교했습니다. overlap을 켜면 `output_tok_per_s`는 5,971→8,512, `itl_ms_p95`는 3.00→2.18 ms였습니다. `ttft_ms_p95`는 20.04→25.52 ms로 늘었습니다. 먼저 `num_errors=0`과 같은 요청 수·길이를 확인하고, 이 세 열을 나란히 봅니다. 처리량과 출력 간격을 우선하면 ON을 후보로 두고, 첫 토큰이 중요한 서비스라면 TTFT 목표를 적용해 다시 비교합니다. 이 비교는 0.6B 모델과 한 번의 실행에 해당합니다. [overlap CSV](data/s04_overlap.csv)

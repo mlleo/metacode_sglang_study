@@ -29,3 +29,7 @@ decode graph를 켜면 step마다 여러 CUDA 커널을 다시 요청하는 비�
 ## 재현
 
 [실습 1–2](../../session05_execution/lab.md)와 [기본 과제](../../session05_execution/assignment.md)의 비교입니다.
+
+## 선택 실습에서 읽을 것
+
+FP8 weight는 로딩 로그의 weight 메모리를 3.28→1.92 GB로 줄였습니다. FP8 KV는 같은 모델 weight에서 `#tokens`를 579,196→1,158,393으로 늘렸습니다. 그런데 동시성 1의 ITL 중앙값은 BF16 2.27 ms, FP8 KV 2.38 ms였습니다. 저장할 수 있는 토큰 수와 한 step의 속도를 따로 봐야 합니다. `Load weight end`와 `KV Cache is allocated`에서 실제 dtype·용량을 확인하고, 부하 CSV의 `itl_ms_p50`과 `output_tok_per_s`를 같은 동시성끼리 비교합니다. [양자화 CSV](data/s05_quant.csv) · [메모리 로그 발췌](data/s05_quant_memory.txt)
