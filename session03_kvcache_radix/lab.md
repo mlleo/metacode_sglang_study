@@ -129,7 +129,7 @@ KV pool을 일부러 24,000 token으로 줄이고(`--max-total-tokens`), prefix 
 ```bash
 bash common/stop.sh
 bash session03_kvcache_radix/code/policy_compare.sh 24000
-python3 session02_architecture_batching/code/bench_to_csv.py results/s03_policy.jsonl --tag policy
+python3 session02_architecture_batching/code/bench_to_csv.py results/s03_policy.jsonl
 ```
 
 | 정책 | cache_hit_rate (로그) | sum_new_token | output tok/s | median TTFT | p99 TTFT |

@@ -24,7 +24,7 @@ for POLICY in lpm fcfs; do
     --dataset-name generated-shared-prefix \
     --gsp-num-groups 16 --gsp-prompts-per-group 16 \
     --gsp-system-prompt-len 2048 --gsp-question-len 128 --gsp-output-len 64 \
-    --max-concurrency 96 --flush-cache --seed 1 \
+    --max-concurrency 96 --flush-cache --seed 1 --tag "${POLICY}" \
     --output-file "${OUT}" > "$LOG" 2>&1 || {
       tail -n 40 "$LOG" >&2
       exit 1
