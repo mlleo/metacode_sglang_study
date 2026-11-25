@@ -1,13 +1,13 @@
 # Session 4 실습 — 스케줄러를 궁지에 몰아넣기
-> **2시간 수업 기준:** 필수 1·2·4 / 선택 3 (1, 2는 각각 스크립트가 10분 안팎 돔 — 시작해 두고 로그 읽기)
+> **2시간 수업 기준:** 학생은 2·4를 실행합니다. 1은 수업에서 제공된 로그로, 3은 선택입니다.
 
 > 실습 55분 (2시간 수업 기준) / GPU 예산 약 $0.8 / 결과물: `results/s04_*.csv|json`, `logs/server_*.log`
 > 이번 회차는 **서버를 여러 번 재시작**합니다. 스크립트가 자동으로 띄우고 끄므로, 기다리는 동안 로그를 읽으세요.
 
 | # | 실습 | 시간 |
 |---|---|---|
-| 0 | 준비 | 수업 시작 시 (발표 중) |
-| 1 | Admission: 낙관적 예약 vs 보수적 예약, 그리고 retraction ⭐ | 20분 |
+| 0 | 준비 | 실습 직전 |
+| 1 | Admission과 retraction 로그 읽기 | 8분 |
 | 2 | Head-of-line blocking과 chunked prefill ⭐ | 20분 |
 | 3 | Overlap scheduling ON/OFF | 12분 |
 | 4 | 정리 & Terminate | 8분 |
@@ -21,9 +21,9 @@ bash common/setup_pod.sh
 
 ---
 
-## 1. Admission & retraction ⭐ (20분)
+## 1. Admission & retraction 로그 읽기
 
-KV pool을 30,000 token으로 좁히고, "아주 긴 이야기를 써 줘" 요청 128개를 한꺼번에 보냅니다. 같은 요청을 세 가지 설정으로 보냅니다.
+KV pool을 30,000 token으로 좁히고, "아주 긴 이야기를 써 줘" 요청 128개를 한꺼번에 보냅니다. 세 실행은 같은 prompt 묶음을 씁니다. 강사가 미리 받은 결과에서 `Prefill batch`와 `Retract requests`를 찾아 봅니다. 아래 명령으로 데이터를 다시 만들 수 있습니다.
 
 | tag | 요청 | 서버 | 기대 |
 |---|---|---|---|
@@ -50,7 +50,7 @@ bash session04_scheduler/code/retraction_sweep.sh 30000
 해석:
 
 1. `eos`의 retract 로그에서 `#new_token_ratio: a -> b`를 찾으세요. a와 b는 몇인가요? 이론 §2의 표(0.7에서 시작해 0.098까지 감소)와 맞나요?
-2. `sum_new_token`(prefill한 총 token)이 `fixed`보다 `eos`에서 큰가요? 그 차이가 **retraction의 재계산 비용**입니다.
+2. `sum_new_token`(prefill한 총 token)이 `fixed`보다 `eos`에서 큰가요? 그 차이에는 retraction 뒤 재계산과 실행마다 달라진 요청 길이의 효과가 함께 들어갑니다. retraction 로그에서 재계산의 증거를 따로 찾으세요.
 3. 셋 중 어느 것이 가장 빨리 끝났나요(wall_time)? "retraction은 나쁘다"고 단정할 수 있나요?
 4. 출력 길이(`completion_len_mean`)는 세 경우 비슷한가요? 다르면 무엇이 비교를 흐리나요? (`temperature=0.8`, EOS)
 
@@ -58,52 +58,32 @@ bash session04_scheduler/code/retraction_sweep.sh 30000
 
 ## 2. Head-of-line blocking과 chunked prefill ⭐ (20분)
 
-16명이 streaming 중일 때 16K token 프롬프트가 두 번 끼어듭니다. 설정 5가지에서 같은 시나리오를 반복합니다.
+16개 요청이 생성 중일 때 16K token짜리 요청을 한 번 보냅니다. chunk 크기와 workload는 그대로 두고 mixed만 바꿉니다.
 
-| tag | 서버 인자 | 이론 |
+| tag | 서버 인자 | 먼저 예상할 것 |
 |---|---|---|
-| nochunk | `--chunked-prefill-size -1` | 16K를 한 번에 |
-| chunk4096 | (기본) | 조각 4개가 **연달아** (§4.3) |
-| chunk1024 | `--chunked-prefill-size 1024` | 조각 16개가 연달아 |
-| chunk1024mx | + `--enable-mixed-chunk` | 조각마다 decode를 섞음 (§4.4) |
-| chunk1024pd | + `--prefill-decode-interval 1` | 조각 뒤 decode 1번 보장 (§4.5) |
-
-**예측 먼저:** 각 설정에서 피해자의 최악 멈춤(`victim_worst_gap_ms_mean`)은 몇 ms일까요? (힌트: Session 1 과제에서 잰 TTFT vs 입력 길이. 그리고 이론 §4.3의 ⚠️)
+| chunk1024 | `--chunked-prefill-size 1024` | prefill 조각이 이어질 때 기존 요청의 다음 token은 언제 오는가? |
+| chunk1024mx | 위 설정 + `--enable-mixed-chunk` | 같은 forward에서 기존 요청도 진행하면 긴 멈춤이 얼마나 달라지는가? |
 
 ```bash
 bash session04_scheduler/code/interference_sweep.sh
 ```
 
-| tag | victim ITL p50 | victim ITL p99 | 최악 멈춤 평균 | 가해자 TTFT | 피해자 E2E 평균 |
-|---|---:|---:|---:|---:|---:|
-| nochunk | | | | | |
-| chunk4096 | | | | | |
-| chunk1024 | | | | | |
-| chunk1024mx | | | | | |
-| chunk1024pd | | | | | |
+실행 도중 출력하는 `스트리밍 중 n/16`을 확인합니다. 비교할 때 이 수가 작은 경우나 실험이 겹치지 않아 중단된 경우에는 두 조건 모두에서 도착 시각을 조정하세요. 예를 들어 `AGGRESSOR_AT=0.3 bash session04_scheduler/code/interference_sweep.sh`를 사용합니다. 아직 첫 token이 오기 전이었다면 더 늦추거나 `VICTIM_OUT`을 늘립니다.
 
-해석:
+| tag | victim ITL p50 | victim ITL p99 | 최악 멈춤 평균 | 긴 요청 TTFT |
+|---|---:|---:|---:|---:|
+| chunk1024 | | | | |
+| chunk1024mx | | | | |
 
-1. nochunk / chunk4096 / chunk1024의 **최악 멈춤이 거의 같다면**, 그게 §4.3의 "조각이 연달아 돈다"는 증거입니다. 그런가요? 다르다면 왜일까요?
-2. mx와 pd에서는 최악 멈춤이 얼마로 줄었나요? 그 값은 "1024 token prefill 하나의 시간"과 비슷한가요?
-3. 가해자의 TTFT는 설정마다 얼마나 늘었나요? 무엇과 무엇을 바꾼 건가요?
-4. ITL **p50**은 다섯 설정에서 비슷하고 **p99와 max**만 다를 것입니다. 왜 p50만 보면 이 문제를 못 찾을까요? mx의 p50이 다른 설정보다 큰가요? (§4.4의 대가)
-5. 서버 로그로 조각이 어떻게 들어갔는지 확인하세요:
-
-   ```bash
-   grep -E "Prefill batch|Decode batch" logs/server_chunk1024.log | grep -A2 "#new-token: 1024" | head -20
-   grep -E "Prefill batch|Decode batch" logs/server_chunk1024pd.log | grep -A2 "#new-token: 1024" | head -20
-   ```
-
-   `chunk1024`에서는 `#new-token: 1024` 줄이 **연속으로** 찍히나요? `chunk1024pd`에서는 그 사이에 decode가 끼어드나요?
-   (Decode 줄은 40 step마다만 찍히므로, 조각 사이 간격은 로그 타임스탬프로 보는 게 더 정확합니다.)
-
-타임라인 그래프 (로컬):
+- 긴 요청이 들어온 시각 전후를 그래프에서 확인하세요. p99와 최대 간격이 한 방향으로 변했나요?
+- mixed에서 긴 요청의 TTFT도 달라졌나요? 두 사용자가 겪은 변화를 각각 한 문장으로 씁니다.
+- 강사 자료에 interval 또는 unchunked 결과가 있으면 같은 그림에 추가합니다. 직접 비교하려면 스크립트에 `nochunk chunk4096 chunk1024 chunk1024mx chunk1024pd`를 넘깁니다.
 
 ```bash
-python session04_scheduler/code/plot_timeline.py results/s04_timeline_nochunk.json \
-  results/s04_timeline_chunk1024.json results/s04_timeline_chunk1024mx.json results/s04_timeline_chunk1024pd.json \
-  --out figures/s04_itl_timeline.png
+# 결과를 다운로드한 뒤 로컬에서 실행
+python3 session04_scheduler/code/plot_timeline.py results/s04_timeline_chunk1024.json \
+  results/s04_timeline_chunk1024mx.json --out figures/s04_itl_timeline.png
 ```
 
 ---
@@ -115,11 +95,11 @@ CPU overhead가 잘 보이도록 **작은 모델(0.6B), 작은 batch**에서 비
 ```bash
 export MODEL=Qwen/Qwen3-0.6B
 bash common/launch.sh ov_on
-python common/loadgen.py --num 32 --input-len 128 --output-len 512 --concurrency 1,4,16 --tag ov_on --out results/s04_overlap.csv
+python3 common/loadgen.py --num 32 --input-len 128 --output-len 512 --concurrency 1,4,16 --tag ov_on --out results/s04_overlap.csv
 bash common/stop.sh
 
 bash common/launch.sh ov_off --disable-overlap-schedule
-python common/loadgen.py --num 32 --input-len 128 --output-len 512 --concurrency 1,4,16 --tag ov_off --out results/s04_overlap.csv
+python3 common/loadgen.py --num 32 --input-len 128 --output-len 512 --concurrency 1,4,16 --tag ov_off --out results/s04_overlap.csv
 bash common/stop.sh
 unset MODEL
 ```
@@ -151,4 +131,4 @@ tar czf s04_$(date +%m%d).tgz results logs
 | `eos`에서도 retraction이 안 생김 | 모델이 일찍 EOS를 냄 → `retraction_demo.py --max-new-tokens 2048` 또는 pool을 20000으로 |
 | `--prefill-decode-interval`이 인식되지 않음 | SGLang 버전 확인 (`v0.5.23`). 없으면 mx 결과만으로 비교 |
 | `nochunk`에서 서버 OOM | 16K 한 번에 prefill하는 activation 메모리 부족 → `--mem-fraction-static 0.6`을 함께 주고 README에 기록 |
-| interference 결과가 실행마다 크게 다름 | 2회 반복해 평균. 가해자 도착 시각(`--aggressor-at`)이 피해자 시작과 겹치지 않는지 확인 |
+| interference 결과가 실행마다 크게 다름 | 2회 반복해 평균. 긴 요청이 기존 요청의 스트리밍 구간에 들어왔는지 확인 |

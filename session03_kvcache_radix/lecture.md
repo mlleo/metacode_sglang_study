@@ -6,7 +6,14 @@
 
 - ★ 수업 핵심 / 📖 복습·심화
 - 코드 발췌는 **SGLang v0.5.23** 기준이며 간추린 것입니다 (원문 위치 표기). 전체 지도는 [docs/code_map.md](../docs/code_map.md)
-- 수업용 추천 구성: §0 → §1.1–1.3 → §3 → §4.1–4.4 → §5.1–5.2 → §6.1–6.2 → §7
+**수업 40분**
+
+- 8분 · §1.3에서 두 요청이 공유하는 슬롯을 찾습니다.
+- 15분 · §4.4에서 두 번째 요청까지 함께 그립니다. 세 번째와 네 번째 요청은 학생이 그린 뒤 시뮬레이터로 확인합니다.
+- 10분 · §4.7과 §5에서 마지막 token의 재계산과 lock이 걸린 경로의 eviction을 설명합니다.
+- 7분 · 같은 프롬프트를 다시 보낼 때 `cached_tokens`를 예측합니다. §9의 런타임 경로를 짚고 실습으로 넘어갑니다.
+
+FCFS/LPM과 in-batch prefix caching은 §6에서 읽고 선택 실습의 로그와 함께 봅니다.
 
 ## 목차
 
@@ -272,7 +279,7 @@ req4 "ABQR"   match("ABQ")  : [ABC]의 2번째까지 → 또 split → cached = 
                                  └ [QR] 8-9
 ```
 
-`python session03_kvcache_radix/code/radix_sim.py ABCDE ABCXY ABCDEZ ABQR`로 그대로 재현됩니다.
+`python3 session03_kvcache_radix/code/radix_sim.py ABCDE ABCXY ABCDEZ ABQR`로 그대로 재현됩니다.
 
 ### 4.5 insert — 새 KV를 tree에 등록하기
 
@@ -306,7 +313,7 @@ def _insert_helper(self, node, key, value):
 |---|---|---|
 | 요청이 prefill 후보가 될 때 | `match_prefix(입력[:-1])` → 재사용할 슬롯 + 마지막 노드 | `Req.init_next_round_input`, `SchedulePolicy` |
 | chunked prefill 조각이 끝날 때 | 지금까지 계산한 부분을 insert (긴 프롬프트도 조각마다 공유 가능) | `RadixCache.checkpoint(req, up_to=...)` |
-| 요청이 끝났을 때 | `insert(입력 + 출력)` → 다음 요청이 쓸 수 있게 등록, 남는 슬롯은 free, lock 해제 | `checkpoint` → `release_kv_cache` / `on_release` |
+| 요청이 끝났을 때 | `insert(이미 KV를 계산한 입력 + 출력)` → 다음 요청이 쓸 수 있게 등록, 남는 슬롯은 free, lock 해제 | `checkpoint` → `release_kv_cache` / `on_release` |
 
 > 구버전(~2025) 코드와 블로그 글에서는 같은 역할을 `cache_finished_req` / `cache_unfinished_req`라고 부릅니다. v0.5.23에서는 `checkpoint` 하나로 합쳐졌습니다.
 
@@ -339,7 +346,7 @@ def _compute_max_prefix_len(self, input_len):
 ```
 
 다음 token을 뽑으려면 마지막 위치의 logits가 필요하고, 그러려면 마지막 token은 반드시 forward해야 합니다.
-그래서 완전히 똑같은 요청을 다시 보내도 `cached = prompt − 1`입니다 (실습 `prefix_basics.py` 3번).
+전체 prefix가 캐시에 남아 있고, page size가 1이며 입력 logprob를 요청하지 않았다면 완전히 같은 요청의 `cached_tokens`는 `prompt_tokens − 1`입니다. 실습 `prefix_basics.py`의 3번이 이 조건입니다.
 
 **출력도 tree에 들어간다.** 요청이 끝나면 생성한 token의 KV도 insert되므로, 멀티턴의 "이전 답변"까지 재사용됩니다.
 (마지막으로 생성된 token 하나는 아직 forward되지 않아 KV가 없으므로 들어가지 않습니다.)
@@ -466,7 +473,7 @@ for r in waiting_queue:
 return temporary_deprioritized
 ```
 
-→ 대표 하나만 먼저 계산하고, 나머지는 **다음 iteration**에 그 결과를 재사용합니다. TTFT는 한 iteration 늘지만 계산량은 크게 줍니다.
+공유 prefix 후보를 뒤로 미루면 먼저 계산한 요청의 KV가 다음 iteration에 쓰일 기회가 생깁니다. 실제 재사용량은 admission 순서와 그때 남은 슬롯에 따라 달라집니다.
 
 ### 6.3 정책 선택 가이드 (📖)
 

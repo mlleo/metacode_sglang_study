@@ -6,7 +6,12 @@
 
 - ★ 수업 핵심 / 📖 복습·심화
 - 코드 발췌는 **SGLang v0.5.23** 기준이며 간추린 것입니다.
-- 수업용 추천 구성: §0 → §1.1–1.3 → §2.1–2.3 → §3 → §4.1–4.3 → §5.1–5.3 → §6.1–6.3 → §8
+**수업 40분**
+
+- 10분 · §1.3에서 두 요청의 positions와 마지막 logits 위치를 직접 씁니다.
+- 10분 · §3.1 계산에 Session 1의 weight 크기와 Session 3의 KV 크기를 넣습니다.
+- 15분 · §4에서 graph 재생의 조건을 보고, batch 1과 graph 상한 밖에서 ON/OFF 차이를 각각 예측합니다.
+- 5분 · §8 표에서 FP8과 speculative decoding이 바꾸는 항을 하나씩 찾습니다. 구현은 §2, §5, §6에서 더 읽습니다.
 
 ## 목차
 
@@ -205,15 +210,15 @@ plan은 batch 모양에 따라 "어떤 요청의 어떤 KV 조각을 어느 블�
 ## 3. ★ decode step 하나를 분해하기
 
 ```text
-decode step 시간 =  CPU 준비 (스케줄링, ForwardBatch 만들기, plan)              ← overlap(S4)으로 숨김
+step에 드는 일  = CPU 준비 (스케줄링, ForwardBatch 만들기, plan)              ← overlap(S4)으로 일부 숨김
                  +  커널 launch overhead (layer 28개 × 커널 수십 개)            ← §4 CUDA graph, §7 퓨전
                  +  linear layer: weight 읽기 (3.44 GB / 1 TB/s ≈ 3.4 ms)       ← §5 weight 양자화
                  +  attention: KV 읽기 (Σ context × 112 KiB / 1 TB/s)           ← §5 KV 양자화, GQA/MLA
                  +  sampling (vocab 15만 × batch)
-             ÷  이 step에서 확정되는 token 수 (보통 요청당 1)                     ← §6 speculative decoding
+요청당 평균 token 시간 ≈ step의 경과 시간 ÷ 그 요청에 확정된 token 수          ← §6 speculative decoding
 ```
 
-모든 최적화가 이 식의 어느 항을 공략하는지 말할 수 있어야 합니다.
+항목별 시간은 일부 겹칩니다. 이 식은 최적화가 어느 일을 줄이는지 표시하는 데 쓰고, 항목을 더해서 실측값을 맞추지는 않습니다.
 
 ### 3.1 달성 대역폭 — 얼마나 하한에 가까운가
 
@@ -221,19 +226,11 @@ decode step 시간 =  CPU 준비 (스케줄링, ForwardBatch 만들기, plan)   
 
 ```text
 step bytes  ≈ weight bytes + batch × 평균 context × KV bytes/token
-달성 대역폭 = step bytes / 측정한 step 시간
-BW%         = 달성 대역폭 / GPU 최대 대역폭 (4090 ≈ 1008 GB/s)
+유효 대역폭 추정 = step bytes / 측정한 step 시간
+BW%              = 유효 대역폭 추정 / GPU 최대 대역폭 (4090 ≈ 1008 GB/s)
 ```
 
-해석:
-
-| BW% | 의미 |
-|---|---|
-| 80–90% | 메모리 대역폭을 거의 다 쓰는 중. 더 빠르게 하려면 bytes를 줄여야 함 (양자화) |
-| 40–60% | 시간의 절반 가까이가 메모리 외의 것: launch overhead, 작은 커널 비효율, sampling |
-| 20% 이하 | overhead 지배. CUDA graph가 꺼져 있거나, batch가 너무 작아 커널이 GPU를 못 채움 |
-
-실제 DRAM 대역폭은 스펙의 90% 정도가 현실적인 상한입니다.
+분자에 넣은 값은 KV와 weight를 모델로 추정한 읽기량입니다. 실제 DRAM 트래픽은 캐시, padding, 다시 읽은 데이터, 중간 텐서 등에 따라 달라집니다. 같은 workload에서 ON/OFF를 비교할 때 쓰고, 병목을 확인할 때는 trace나 하드웨어 카운터를 함께 봅니다.
 
 ### 3.2 예제 (숫자는 설명용 가정)
 
@@ -243,7 +240,7 @@ batch=1, context 576, 측정 step 4.6 ms
   달성 ≈ 3.51 / 0.0046 ≈ 763 GB/s → BW ≈ 76%
 
 같은 조건 CUDA graph 끔, 측정 11 ms
-  달성 ≈ 319 GB/s → BW ≈ 32%   ← 시간의 절반 이상이 launch overhead
+  달성 ≈ 319 GB/s → BW ≈ 32%   ← 같은 bytes 가정에서 이 지표가 낮아짐
 ```
 
 ---
@@ -310,7 +307,7 @@ prefill(compute-bound)에서는 FP8 tensor core가 BF16보다 연산 처리량�
 
 | 무엇을 | 플래그 | 효과 | 대가 |
 |---|---|---|---|
-| weight → FP8 | `--quantization fp8` (로딩 시 온라인 양자화) 또는 FP8 체크포인트 | weight 읽기 ½ → 작은 batch decode 최대 ~2배, weight 메모리 ½ → KV pool↑ | 정확도 소폭↓, FP8 tensor core 필요 (Ada/Hopper 이상: 4090 OK, 3090 X) |
+| weight → FP8 | `--quantization fp8` (지원 조합에서 로딩 시 양자화) 또는 FP8 체크포인트 | weight 읽기 ½ → 작은 batch decode 최대 ~2배, weight 메모리 ½ → KV pool↑ | 정확도 소폭↓, FP8 tensor core 필요 (Ada/Hopper 이상: 4090 OK, 3090 X) |
 | KV → FP8 | `--kv-cache-dtype fp8_e4m3` | KV 메모리 ½ → **담을 수 있는 token 2배**, 긴 context decode의 KV 읽기 ½ | 정확도 소폭↓, backend가 FP8 KV를 지원해야 함 (안 되면 dequant 비용으로 오히려 느려짐) |
 | weight → INT4 (AWQ/GPTQ) | 양자화된 체크포인트 (자동 인식) | weight ¼ | 정확도↓, 큰 batch에서 dequant 비용, 연산은 결국 BF16/FP16 |
 

@@ -6,7 +6,14 @@
 
 - ★ 수업 핵심 / 📖 복습·심화
 - §1의 함정 표는 지난 5회차 동안 우리가 직접 밟은 것들입니다. 학생들의 과제가 최고의 예시입니다.
-- 수업용 추천 구성: §0 → §1.1–1.4 → §2.1–2.3 → §3.1 → §4.1–4.2 → §5.1 → §6
+**수업 40분**
+
+- 12분 · §1.2의 반복 결과를 읽고, 팀별로 같은 workload를 짝지어 측정하는 방법을 한 가지 제안합니다.
+- 13분 · §2.2에서 trace 한 장을 읽습니다. GPU가 비는 순간을 표시하고, 같은 시각의 CPU와 복사 stream을 확인합니다.
+- 10분 · §4.1의 두 부하에서 비용을 구한 다음 Session 2의 SLO를 적용합니다.
+- 5분 · 최종 프로젝트의 비교 대상과 결과를 판정할 지표를 한 줄씩 적습니다.
+
+Prometheus와 멀티 GPU 지도는 실습 자료 또는 복습에서 이어서 읽습니다.
 
 ## 목차
 
@@ -66,8 +73,8 @@ x̄ ± t(0.975, n−1) × s / √n          t: n=3 → 4.30, n=5 → 2.78, n=10 
 
 예: throughput 3,000 / 3,100 / 2,950 tok/s → x̄ = 3,017, s ≈ 76 → 95% CI ≈ ±190 (±6.3%)
 
-- 이 상태에서 "B가 A보다 4% 빠르다"는 말할 수 없습니다. **두 CI가 겹치면 "이 측정으로는 구분 못 함"** 이 정답입니다.
-- n=3에서 t값이 큰(4.30) 이유: 표본이 적으면 s 자체도 불확실하기 때문. 반복을 5번으로 늘리면 CI 폭이 크게 줄어듭니다.
+- A와 B를 같은 호스트에서 같은 seed/workload로 짝지어 실행했다면, 쌍마다 `B − A`를 구하고 그 차이의 95% CI를 계산합니다. 0을 포함하면 이 데이터만으로 차이의 방향을 가리기 어렵습니다. 독립 두 표본은 Welch 방식 등으로 평균 차이의 CI를 구합니다. 설정마다 구한 CI의 겹침은 차이의 CI를 대신할 수 없습니다.
+- n=3에서 t값이 큰(4.30) 이유는 표본이 적어 s도 불확실하기 때문입니다. 같은 정도의 변동이라면 반복을 늘릴수록 구간은 좁아집니다.
 - **tail 지표(p99)는 평균보다 훨씬 노이즈가 큽니다.** 요청 100개의 p99는 사실상 "가장 나쁜 1–2개"입니다. p99를 비교하려면 요청 수를 늘리세요 (최소 수백 개).
 - 반복은 **같은 호스트에서 연속으로** 한 것(측정 노이즈)과 **다른 Pod에서** 한 것(환경 노이즈)을 구분해서 적습니다.
 
@@ -137,7 +144,7 @@ curl -X POST http://127.0.0.1:30000/start_profile -H "Content-Type: application/
 
 - `start_step`으로 앞의 몇 step을 건너뛸 수 있습니다 (warm-up 제외).
 - `profile_by_stage`로 prefill과 decode를 따로 녹화할 수 있습니다.
-- `python -m sglang.benchmark.serving ... --profile`도 같은 엔드포인트를 씁니다.
+- `python3 -m sglang.benchmark.serving ... --profile`도 같은 엔드포인트를 씁니다.
 - 결과 `*.trace.json.gz`는 <https://ui.perfetto.dev>에서 엽니다 (브라우저에서만 처리, 업로드 없음).
 
 ### 2.2 trace 읽기
@@ -150,7 +157,7 @@ GPU stream              │      ░░░░ (놀고 있음) ░░░░  █�
 
 보는 순서:
 
-1. **GPU 줄에 빈 칸이 있는가?** → 있다면 CPU가 병목. CUDA graph가 켜져 있나? (켜져 있으면 CPU 쪽에 `cudaGraphLaunch` 하나가 보이고, GPU 쪽에 커널 수백 개가 빈틈없이 붙어 있음)
+1. **GPU 줄에 빈 칸이 있는가?** → 있다면 CPU launch, 동기화, 다른 stream의 복사, 들어온 요청이 없는 구간을 차례로 확인합니다. CUDA graph가 켜져 있나? (켜져 있으면 CPU 쪽에 `cudaGraphLaunch` 하나가 보이고, GPU 쪽에 커널 수백 개가 빈틈없이 붙어 있음)
 2. **GPU 시간의 대부분은 어떤 커널인가?** 커널 이름으로 분류합니다 (이름은 라이브러리·버전마다 다름):
 
    | 이름에 들어 있는 것 | 정체 |
@@ -164,7 +171,7 @@ GPU stream              │      ░░░░ (놀고 있음) ░░░░  █�
    | `Memcpy`, `copy`, `index` | 데이터 복사·인덱싱 |
 
 3. **memcpy가 눈에 띄는가?** CPU↔GPU 복사가 step마다 크게 있으면 의심 (예: 매 step 큰 텐서를 CPU로 가져오는 코드)
-4. **step 사이의 간격**: 연속한 forward 사이의 GPU 빈칸 = 스케줄러 CPU 시간 중 overlap으로 못 숨긴 부분
+4. **step 사이의 간격**: 연속한 forward 사이의 GPU 빈칸을 찾고 CPU 쪽에서 같은 시간대에 무엇을 하는지 봅니다.
 
 `session06_benchmark_production/code/trace_summary.py`는 1, 2를 숫자로 뽑아 줍니다 (`gpu_busy_pct`, 카테고리별 비율).
 
@@ -173,8 +180,8 @@ GPU stream              │      ░░░░ (놀고 있음) ░░░░  █�
 | 관찰 | 해석 | 다음 행동 |
 |---|---|---|
 | batch=1, GPU busy 40%, 커널 사이 빈칸이 고르게 많음 | launch overhead | CUDA graph 확인, overlap 확인 |
-| batch=64, GPU busy 95%, gemm 70% | weight 읽기 지배, 하드웨어 한계에 근접 | 양자화, 더 큰 batch |
-| batch=64, context 8K, attention 60% | KV 읽기 지배 | KV FP8, attention backend 비교 |
+| batch=64, GPU busy 95%, gemm 70% | GEMM 이벤트가 대부분의 시간을 차지 | bandwidth와 연산 지표로 병목 확인 |
+| batch=64, context 8K, attention 60% | attention 비중이 큼 | 같은 batch에서 context만 바꿔 확인 |
 | forward 사이 간격이 5 ms씩 | 스케줄러 CPU가 느림 (LPM 정렬, 큰 대기열 등) | py-spy로 scheduler 프로세스 확인 |
 | GPU 바쁨, 그런데 클라이언트 ITL은 들쭉날쭉 | 서버 밖(Detokenizer, HTTP, 네트워크, 클라이언트) | metrics와 클라이언트 측정 비교 (§3.2) |
 
@@ -182,7 +189,7 @@ GPU stream              │      ░░░░ (놀고 있음) ░░░░  █�
 
 ```bash
 nsys profile -o s05 --force-overwrite=true \
-  python -m sglang.benchmark.one_batch --model-path Qwen/Qwen3-1.7B --batch-size 1 --input-len 256 \
+  python3 -m sglang.benchmark.one_batch --model-path Qwen/Qwen3-1.7B --batch-size 1 --input-len 256 \
   --profile --profile-activities CUDA_PROFILER
 ```
 
@@ -236,7 +243,7 @@ nsys는 CPU 스레드, CUDA API, 커널, 메모리 복사, NVTX 범위를 하나
 ### 4.1 공식
 
 ```text
-$/1M output tokens = ($/hour) ÷ (output tokens/s × 3600) × 10⁶ ÷ (평균 활용률)
+$/1M output tokens = ($/hour) ÷ (output tokens/s × 3600) × 10⁶ ÷ (해당 부하로 처리하는 시간 비율)
 ```
 
 예 (숫자는 예시 — 여러분의 측정값과 Deploy 화면 가격으로 다시 계산하세요):
@@ -252,7 +259,7 @@ SLO(p95 TTFT ≤ 500 ms) 때문에 동시성 16까지만 쓸 수 있고 그때 4
 
 - **가장 빠른 설정 ≠ 가장 싼 설정 ≠ SLO를 지키는 가장 싼 설정.** 셋을 따로 계산합니다.
 - **비싼 GPU가 더 쌀 수 있습니다.** H100이 4090보다 시간당 몇 배 비싸도 throughput이 그 이상이면 token당 비용은 낮아집니다. 특히 메모리가 커서 batch를 크게 키울 수 있으면. (최종 프로젝트 E 주제)
-- **활용률이 비용을 지배합니다.** 트래픽이 출렁이는 서비스에서는 autoscaling, 여러 모델의 GPU 공유, 배치 작업으로 빈 시간 채우기가 커널 최적화보다 큰 효과를 내기도 합니다.
+- 여기서 30%는 예시 처리량으로 서비스가 동작한 시간 비율입니다. `nvidia-smi`의 GPU utilization이나 trace의 GPU busy %는 이 계산에 그대로 넣을 수 없습니다. 트래픽이 출렁이는 서비스에서는 autoscaling, 여러 모델의 GPU 공유, 배치 작업으로 빈 시간 채우기가 커널 최적화보다 큰 효과를 내기도 합니다.
 - 이 스터디에서 쓴 최적화 대부분(batching, prefix cache, 양자화, CUDA graph)은 결국 **같은 GPU-시간에 더 많은 token**, 즉 비용 최적화였습니다.
 
 ### 4.3 입력 token과 출력 token (📖)
@@ -374,7 +381,7 @@ Session 5의 Optimization Note를 확장해도 좋습니다.
 
 ### 자기 점검 문제
 
-1. A 설정 throughput 5회: 4100, 4180, 4050, 4220, 4150. B 설정 5회: 4300, 4250, 4380, 4200, 4310. "B가 빠르다"고 말할 수 있나? (t=2.78)
+1. 같은 seed끼리 나열한 A throughput 5회: 4100, 4180, 4050, 4220, 4150. B: 4300, 4250, 4380, 4200, 4310. 각 쌍의 B − A로 95% CI를 구하면? (t=2.78)
 2. 동시성 64, 요청 100개로 측정했다. 무엇이 문제이고 어떻게 고치나?
 3. batch=1 decode trace에서 GPU busy가 95%인데 ITL이 이론 하한의 1.5배다. 무엇을 의심하나?
 4. $0.59/h GPU, SLO 만족 throughput 5,000 tok/s, 평균 활용률 40%. $/1M output tokens는?
@@ -384,7 +391,7 @@ Session 5의 Optimization Note를 확장해도 좋습니다.
 <details>
 <summary>답</summary>
 
-1. A: x̄=4140, s≈66 → CI ±82 (4058–4222). B: x̄=4288, s≈68 → CI ±84 (4204–4372). 겹치는 구간이 거의 없음(4204–4222만 겹침) → 차이가 있을 가능성이 높지만 경계선. 반복을 늘리거나 차이(~3.6%)를 "약 3–4%, 신뢰구간이 거의 겹치지 않음"으로 신중히 보고.
+1. 차이는 200, 70, 330, −20, 160 tok/s입니다. 평균 148, 표본 표준편차 약 133, 95% CI는 약 [−17, 313] tok/s입니다. B의 평균이 더 높았지만 이 다섯 쌍으로는 차이의 방향을 가리기 어렵습니다.
 2. 요청 수가 동시성의 1.6배 → 대부분이 ramp 구간. 요청 수를 256 이상(4배)으로, 가능하면 앞뒤 구간 제외.
 3. GPU는 바쁘지만 하한보다 느림 → 커널 자체 효율(작은 batch gemm의 비효율), attention/sampling 등 weight 외 작업, 실제 대역폭이 스펙보다 낮음(전력 제한, 클럭). 커널별 시간 분포와 달성 대역폭을 확인.
 4. 0.59 / (5000 × 3600) × 10⁶ / 0.4 ≈ $0.082

@@ -66,6 +66,8 @@ class RadixTree:
             n = _common(child.key, key)
             if n < len(child.key):
                 child = self._split(child, n)
+            # 재사용한 슬롯은 그대로 두고, 중복 계산으로 새로 잡은 슬롯만 반납한다.
+            self.free.extend(new for new, cached in zip(value[:n], child.value) if new != cached)
             node, key, value = child, key[n:], value[n:]
         if key:
             leaf = Node(key, value, node)
@@ -131,7 +133,7 @@ def main() -> None:
         matched, last = tree.match(toks[:-1])          # 마지막 token은 항상 다시 계산
         last.lock_ref += 1                              # 실행 중에는 evict 금지 (inc_lock_ref, 단순화)
         new_slots, evicted = tree.alloc(len(toks) - len(matched))
-        tree.insert(toks, matched + new_slots)          # 요청 종료 시 전체를 tree에 등록 (cache_finished_req)
+        tree.insert(toks, matched + new_slots)          # 요청 종료 시 계산된 KV 등록 (checkpoint)
         last.lock_ref -= 1
         print(f"req{i} {s!r}: cached={len(matched)} new={len(new_slots)}"
               + (f"  evicted={evicted}" if evicted else "") + f"  free={len(tree.free)}")

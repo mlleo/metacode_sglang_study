@@ -6,7 +6,7 @@
 
 | # | 실습 | 시간 |
 |---|---|---|
-| 0 | 준비 | 수업 시작 시 (발표 중) |
+| 0 | 준비 | 실습 직전 |
 | 1 | 같은 실험 3번: 노이즈는 얼마나 큰가 ⭐ | 12분 |
 | 2 | torch profiler로 decode step 들여다보기 ⭐ | 18분 |
 | 3 | Prometheus metrics로 서버 상태 보기 | 8분 |
@@ -28,16 +28,16 @@ bash common/setup_pod.sh
 ```bash
 bash common/launch.sh rep
 for i in 1 2 3; do
-  python common/loadgen.py --num 64 --input-len 512 --output-len 256 --concurrency 16 \
+  python3 common/loadgen.py --num 64 --input-len 512 --output-len 256 --concurrency 16 \
     --flush --seed $i --tag c16 --out results/s06_rep.csv
-  python common/loadgen.py --num 128 --input-len 512 --output-len 256 --concurrency 64 \
+  python3 common/loadgen.py --num 256 --input-len 512 --output-len 256 --concurrency 64 \
     --flush --seed $i --tag c64 --out results/s06_rep.csv
 done
-python session06_benchmark_production/code/repeat_stats.py results/s06_rep.csv --group tag
+python3 session06_benchmark_production/code/repeat_stats.py results/s06_rep.csv --group tag
 ```
 
 - throughput의 CI 폭은 평균의 몇 %인가요? p99 TTFT는?
-- 지난 과제들에서 "A가 B보다 5% 빨랐다"고 쓴 적이 있다면, 그 주장은 이 노이즈 수준에서 유효한가요?
+- 이번 반복은 각 설정의 변동을 보는 실습입니다. 설정의 효과를 검정하려면 같은 조건끼리 짝지어 차이를 구하거나, 독립 두 표본의 차이 구간을 계산합니다.
 - 옆 사람(다른 Pod, 같은 4090)과 c16 평균 throughput을 비교해 보세요. 호스트 간 차이는 반복 내 차이보다 큰가요?
 
 > 서버는 다음 실습에서도 쓰지 않으므로 끕니다: `bash common/stop.sh`
@@ -49,11 +49,15 @@ python session06_benchmark_production/code/repeat_stats.py results/s06_rep.csv -
 **예측 먼저:** 동시성 1과 32에서 GPU busy %는? CUDA graph를 끄면?
 
 ```bash
-bash session06_benchmark_production/code/profile_decode.sh c1  1
-bash session06_benchmark_production/code/profile_decode.sh c32 32
-bash session06_benchmark_production/code/profile_decode.sh c1_nograph 1 --cuda-graph-backend-decode disabled
+bash session06_benchmark_production/code/profile_decode.sh c1 1
+python3 session06_benchmark_production/code/trace_summary.py profiles/c1
+```
 
-python session06_benchmark_production/code/trace_summary.py profiles/c1 profiles/c32 profiles/c1_nograph
+graph OFF와 동시성 32는 강사가 같은 환경에서 재어 둔 trace를 사용합니다. 직접 재려면 아래 명령을 사용하세요.
+
+```bash
+bash session06_benchmark_production/code/profile_decode.sh c1_nograph 1 --cuda-graph-backend-decode disabled
+bash session06_benchmark_production/code/profile_decode.sh c32 32
 ```
 
 | tag | GPU busy % | gemm % | attention % | 상위 커널 1위 |
@@ -76,10 +80,10 @@ python session06_benchmark_production/code/trace_summary.py profiles/c1 profiles
 
 ```bash
 bash common/launch.sh metrics --enable-metrics
-python session06_benchmark_production/code/metrics_probe.py --watch 2 &
-python common/loadgen.py --num 96 --input-len 1024 --output-len 256 --concurrency 32 --tag m --out results/s06_metrics.csv
+python3 session06_benchmark_production/code/metrics_probe.py --watch 2 &
+python3 common/loadgen.py --num 96 --input-len 1024 --output-len 256 --concurrency 32 --tag m --out results/s06_metrics.csv
 kill %1
-python session06_benchmark_production/code/metrics_probe.py
+python3 session06_benchmark_production/code/metrics_probe.py
 curl -s localhost:30000/metrics | grep -E "^sglang:(num_running_reqs|token_usage|cache_hit_rate)" | head
 bash common/stop.sh
 ```
@@ -95,16 +99,16 @@ RunPod 콘솔에서 **지금 쓰고 있는 Pod의 시간당 가격**을 확인�
 
 ```bash
 # Session 2의 동시성 sweep (bench_to_csv 결과)
-python session06_benchmark_production/code/cost_calc.py results/s02_base.csv --usd-per-hour 0.59 \
+python3 session06_benchmark_production/code/cost_calc.py results/s02_base.csv --usd-per-hour 0.59 \
   --throughput output_throughput --load max_concurrency --slo p95_ttft_ms=500 --slo p95_itl_ms=50
-# 활용률 30% 가정
-python session06_benchmark_production/code/cost_calc.py results/s02_base.csv --usd-per-hour 0.59 \
-  --throughput output_throughput --load max_concurrency --slo p95_ttft_ms=500 --utilization 0.3
+# 위 처리량으로 동작하는 시간 비율 30% 가정
+python3 session06_benchmark_production/code/cost_calc.py results/s02_base.csv --usd-per-hour 0.59 \
+  --throughput output_throughput --load max_concurrency --slo p95_ttft_ms=500 --slo p95_itl_ms=50 --utilization 0.3
 ```
 
 (지난 결과가 Pod에 없다면 로컬에서 실행하면 됩니다 — GPU 불필요)
 
-- 가장 싼 설정과 SLO를 지키는 가장 싼 설정은 각각 몇 $/1M인가요?
+- 표에서 전체 최저 비용과 두 지연 기준을 모두 만족한 최저 비용을 비교하세요. 처리하는 시간 비율만 30%로 바꾸면 선택도 달라지나요?
 - Session 5의 FP8 결과(`s05_quant.csv`)로 같은 계산을 하면 얼마나 싸지나요?
 
 ---

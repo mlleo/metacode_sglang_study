@@ -16,36 +16,35 @@ SLO: **p95 TTFT ≤ 500 ms, p95 ITL ≤ 50 ms**
 
 | 실험 | 입력 / 출력 | 방법 |
 |---|---|---|
-| A1 (수업 결과 재사용 가능) | 512 / 256 | 동시성 sweep 1–128 |
+| A1 (수업 결과 재사용 가능) | 512 / 256 | 수업에서 잰 1, 8, 32, 64, 128 |
 | A2 | **2048** / 256 | 동시성 sweep — 같은 목록 |
-| A3 | 512 / **1024** | 동시성 sweep — 1, 4, 16, 64만 (비용 절약) |
+| A3 (선택) | 512 / **1024** | 출력 길이도 조사할 때 1, 8, 32, 64 |
 
 ```bash
 bash common/launch.sh baseline
-bash session02_architecture_batching/code/sweep_concurrency.sh in2k "1 2 4 8 16 32 64 128" 2048 256
-bash session02_architecture_batching/code/sweep_concurrency.sh out1k "1 4 16 64" 512 1024
+bash session02_architecture_batching/code/sweep_concurrency.sh in2k "1 8 32 64 128" 2048 256
 bash common/stop.sh
 ```
 
 각 실험에 대해:
 
 ```bash
-python session02_architecture_batching/code/bench_to_csv.py results/s02_in2k.jsonl --tag in2k
-python session02_architecture_batching/code/find_capacity.py results/s02_in2k.csv \
+python3 session02_architecture_batching/code/bench_to_csv.py results/s02_in2k.jsonl --tag in2k
+python3 session02_architecture_batching/code/find_capacity.py results/s02_in2k.csv \
     --slo p95_ttft_ms=500 --slo p95_itl_ms=50
 ```
 
 ## Part B. 분석
 
 1. **그래프 2장**
-   - 동시성 → output throughput (A1, A2, A3 세 선)
+   - 동시성 → output throughput (A1과 A2, A3을 실행했다면 세 번째 선 추가)
    - output throughput → p95 TTFT (latency-throughput 곡선, 점마다 동시성 표시)
 2. **표**: 실험별 capacity(SLO 만족 최대 동시성)와 그때의 throughput
 3. **팀장에게 보내는 답변 3–5문장.** 숫자, 그리고 "어떤 조건이 바뀌면 이 숫자가 틀려지는가"를 포함하세요.
-4. **왜?** 입력이 2K로 늘었을 때 capacity가 줄어든 이유를 두 가지 메커니즘으로 설명하세요.
+4. **왜?** 입력이 2K로 늘었을 때 한계가 바뀌었나요? 가능한 원인 두 가지를 로그와 대조하세요.
    (힌트 ①: 새 요청의 prefill이 길어지면 기존 요청의 ITL이 어떻게 되나? ② KV pool ≈ 12만 token에 요청 하나가 차지하는 양은?)
    서버 로그(`common/logparse.py`)의 `token usage`·`#queue-req` 최대값을 근거로 쓰세요.
-5. A3(출력 1K)는 throughput과 TTFT 중 무엇에 더 큰 영향을 줬나요? Little's law로 설명해 보세요.
+5. 선택 실험 A3(출력 1K)는 throughput과 TTFT 중 무엇에 더 큰 영향을 줬나요? Little's law로 설명해 보세요.
 
 ## Part C. 아키텍처 다이어그램 (GPU 불필요)
 
@@ -54,7 +53,7 @@ python session02_architecture_batching/code/find_capacity.py results/s02_in2k.cs
 요구사항:
 
 - 프로세스 경계 3개 (TokenizerManager / Scheduler / DetokenizerManager)와 그 사이 통신 방식
-- **SGLang v0.5.23의 실제 함수 이름 8개 이상** ([docs/code_map.md](../docs/code_map.md) 참고. 직접 `grep`해서 찾은 것 2개 이상 포함)
+- **직접 따라가 본 함수 세 개**. 시작할 곳은 [코드 지도](../docs/code_map.md)입니다. 각 함수가 요청에 하는 일을 옆에 한 줄로 씁니다.
 - 그림 위에 **TTFT에 들어가는 구간**과 **ITL에 들어가는 구간**을 표시
 - `get_next_batch_to_run`이 prefill과 decode 중 무엇을 고르는지에 대한 규칙 한 줄
 

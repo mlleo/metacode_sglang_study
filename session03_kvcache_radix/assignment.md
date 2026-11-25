@@ -26,7 +26,7 @@ req5  SYSTEMBYEBYE
 그다음 `radix_sim.py`로 검증하세요.
 
 ```bash
-python session03_kvcache_radix/code/radix_sim.py SYSTEMHELLO SYSTEMBYE SYSTEMHELP CHAT SYSTEMBYEBYE --capacity 16
+python3 session03_kvcache_radix/code/radix_sim.py SYSTEMHELLO SYSTEMBYE SYSTEMHELP CHAT SYSTEMBYEBYE --capacity 16
 ```
 
 손 추적과 시뮬레이터 결과가 **다른 곳이 있다면** 어느 쪽이 맞는지, 왜 그런지 설명하세요. (시뮬레이터가 단순화한 부분도 찾아보세요. 힌트: lock 처리, 마지막 token.)
@@ -36,20 +36,20 @@ python session03_kvcache_radix/code/radix_sim.py SYSTEMHELLO SYSTEMBYE SYSTEMHEL
 수업의 `prefix_sweep.py`는 **요청을 하나씩** 보냈습니다. 실제 서비스는 동시에 들어옵니다.
 동시성 16에서 **공유 비율**에 따라 throughput과 TTFT가 어떻게 변하는지 재 보세요.
 
-입력은 총 2048 token으로 고정하고, 그중 공유 prefix 비율을 0% / 25% / 50% / 75% / 95%로 바꿉니다.
+입력은 모두 2048 token으로 고정하고 공유 prefix 0%, 50%, 75%를 비교합니다. 25%와 95%는 시간이 남을 때 추가하세요.
 
 ```bash
 bash common/launch.sh baseline
-for SHARE in 0 512 1024 1536 1946; do
+for SHARE in 0 1024 1536; do
   SUFFIX=$((2048 - SHARE))
-  python common/loadgen.py --num 64 --concurrency 16 --shared-prefix-len $SHARE --input-len $SUFFIX \
+  python3 common/loadgen.py --num 64 --concurrency 16 --shared-prefix-len $SHARE --input-len $SUFFIX \
     --output-len 128 --flush --tag share$SHARE --out results/s03_share.csv
 done
 bash common/stop.sh
 
-# 대조군: radix cache를 끄고 같은 실험 (75%만)
+# 선택: radix cache를 끄고 같은 실험 (75%만)
 bash common/launch.sh noradix --disable-radix-cache
-python common/loadgen.py --num 64 --concurrency 16 --shared-prefix-len 1536 --input-len 512 \
+python3 common/loadgen.py --num 64 --concurrency 16 --shared-prefix-len 1536 --input-len 512 \
   --output-len 128 --flush --tag noradix1536 --out results/s03_share.csv
 bash common/stop.sh
 ```
@@ -58,10 +58,9 @@ bash common/stop.sh
 
 1. 그래프: 공유 비율 → output throughput, p50 TTFT (두 subplot)
 2. 각 조건의 `cache_hit_rate`(CSV)와 이론값 (공유 비율 × (요청 수 − 1) / 요청 수 근처)의 비교
-3. 해석: 공유 비율 95%일 때 throughput이 몇 배 늘었나요? **TTFT 개선 폭과 throughput 개선 폭이 다르다면** 왜일까요?
+3. 해석: 공유 비율 75%일 때 throughput이 몇 배 늘었나요? **TTFT 개선 폭과 throughput 개선 폭이 다르다면** 왜일까요?
    (힌트: 출력 128 token의 decode는 캐시와 무관하다. Session 1 §3, §5)
-4. `--disable-radix-cache` 대조군은 공유 75% 결과와 비교해 어떤가요? 공유 0% 결과와는?
-   → "radix cache를 켜 두는 비용"이 거의 0이라는 것을 숫자로 보이세요.
+4. 선택 대조군을 실행했다면 공유 75%에서 cache ON/OFF를 비교하세요. ON 상태의 공유 0%와 비교할 때는 prefix 구성도 함께 바뀐다는 점을 적습니다.
 
 ## Part C. 선택 실험 (하나 골라서, GPU $0.3 이내)
 

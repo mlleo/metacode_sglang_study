@@ -26,6 +26,11 @@ for C in $CONCS; do
     --random-input-len "${IN}" --random-output-len "${OUT}" --random-range-ratio 1.0 \
     --num-prompts "${N}" --max-concurrency "${C}" \
     --flush-cache --warmup-requests 2 --seed "${C}" \
-    --output-file "${FILE}" 2>&1 | grep -E "Max request concurrency|Request throughput|Output token throughput|Median TTFT|P99 TTFT|Median ITL|P99 ITL" || true
+    --output-file "${FILE}" > "${LOG_DIR}/bench_${TAG}_c${C}.log" 2>&1 || {
+      tail -n 40 "${LOG_DIR}/bench_${TAG}_c${C}.log" >&2
+      exit 1
+    }
+  grep -E "Successful requests|Max request concurrency|Request throughput|Output token throughput|Median TTFT|P99 TTFT|Median ITL|P99 ITL" \
+    "${LOG_DIR}/bench_${TAG}_c${C}.log"
 done
 echo "saved ${FILE}"

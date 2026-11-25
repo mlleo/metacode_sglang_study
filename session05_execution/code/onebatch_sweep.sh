@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 서버 없이 '한 batch'의 prefill / decode step 시간을 잰다 (python -m sglang.benchmark.one_batch).
-# HTTP·토크나이저·스케줄러가 빠지므로 순수한 GPU 실행 시간에 가장 가깝다.
+# HTTP 도착부터 재는 대신 한 batch의 준비·forward·sampling·동기화를 잰다.
 #
 #   bash session05_execution/code/onebatch_sweep.sh <tag> [추가 server 인자...]
 #   예) bash session05_execution/code/onebatch_sweep.sh base
@@ -18,8 +18,8 @@ BS="${BS:-1 4 16 64 128}"
 IN="${IN:-512}"
 OUT="${OUT:-64}"
 
-if pgrep -f "sglang.launch_server" > /dev/null; then
-  echo "[오류] 서버가 GPU를 쓰고 있습니다. bash common/stop.sh 먼저."; exit 1
+if [ -s "${LOG_DIR}/server.pid" ]; then
+  echo "[오류] 이 실습의 서버가 실행 중입니다. bash common/stop.sh 먼저."; exit 1
 fi
 
 # shellcheck disable=SC2086
@@ -27,5 +27,9 @@ python3 -m sglang.benchmark.one_batch \
   --model-path "${MODEL}" \
   --batch-size ${BS} --input-len "${IN}" --output-len "${OUT}" \
   --run-name "${TAG}" --result-filename "${RESULT_DIR}/s05_onebatch.jsonl" \
-  "$@" 2>&1 | tee "${LOG_DIR}/onebatch_${TAG}.log" | grep -E "^Prefill\.|^Decode\.  median|^Total\.|max_total_num_tokens" || true
+  "$@" > "${LOG_DIR}/onebatch_${TAG}.log" 2>&1 || {
+    tail -n 40 "${LOG_DIR}/onebatch_${TAG}.log" >&2
+    exit 1
+  }
+grep -E "^Prefill\.|^Decode\.  median|^Total\.|max_total_num_tokens" "${LOG_DIR}/onebatch_${TAG}.log"
 echo "saved → ${RESULT_DIR}/s05_onebatch.jsonl"

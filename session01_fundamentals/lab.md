@@ -1,11 +1,11 @@
 # Session 1 실습 — 직접 짠 decode loop, 그리고 첫 SGLang 서버
-> **2시간 수업 기준:** 필수 0·1·3·4·5 / 선택 2 (HF `generate()` 기준선은 과제 Part C에서 해도 됨)
+> **2시간 수업 기준:** 필수 0·1·3·4·5 / 선택 2 (별도의 HF `generate()` 비교)
 
 > 실습 55분 (2시간 수업 기준) / GPU 예산 약 $0.9 / 결과물: `results/s01_*.csv`, `logs/server_baseline.log`, `logs/env.txt`
 
 | # | 실습 | 시간 | 핵심 관찰 |
 |---|---|---|---|
-| 0 | Pod 준비 (수업 시작할 때) | 10분 | driver ≥ 580, SGLang 0.5.23 |
+| 0 | Pod 준비 (실습 직전) | 10분 | driver ≥ 580, SGLang 0.5.23 |
 | 1 | 직접 짠 decode loop | 15분 | prefill ∝ 입력 길이, decode step은 거의 일정, batch를 키워도 step 시간은 조금만 증가 |
 | 2 | HF `generate()` 기준선 | 8분 | batch별 throughput / E2E |
 | 3 | 첫 SGLang 서버 | 12분 | 시작 로그 읽기, native / streaming / OpenAI API |
@@ -31,11 +31,11 @@ bash common/setup_pod.sh          # 끝나면 logs/env.txt 생성
 
 ## 1. 직접 짠 decode loop (15분)
 
-`code/manual_decode.py`는 `generate()`를 쓰지 않고 prefill 1번 + decode N번을 손으로 돌리며 각각의 시간을 잽니다.
+`code/manual_decode.py`는 `generate()`를 쓰지 않고 prefill 1번 + 후속 decode을 손으로 돌리며 각각의 시간을 잽니다.
 먼저 코드를 30초만 훑어보세요. `run()` 함수 안의 두 `model(...)` 호출이 각각 prefill과 decode입니다.
 
 ```bash
-python session01_fundamentals/code/manual_decode.py --out results/s01_manual.csv
+python3 session01_fundamentals/code/manual_decode.py --out results/s01_manual.csv
 ```
 
 맨 처음 출력되는 줄을 보세요:
@@ -61,9 +61,9 @@ weights = 3.44 GB → batch=1 decode 이론 하한 ≈ 3.41 ms/step (대역폭 1
 1. **inlen 실험**: 입력 128 → 2048 (16배)일 때 prefill_ms는 몇 배? decode_step_ms는?
    → prefill은 입력에 따라 크게 늘고, decode step은 거의 그대로여야 합니다. 왜일까요? (이론 §3, §5)
 2. **batch 실험**: batch 1 → 32에서 decode_step_ms는 몇 배? decode_tok_per_s는 몇 배?
-   → step 시간이 32배가 아니라면 그게 "memory-bound 공짜 구간"입니다.
+   → step 시간이 32배보다 적게 늘었다면 batch로 처리량을 얻은 것입니다. weight를 여러 요청이 같이 쓰는 모델로 이 결과를 설명해 보세요.
 3. batch=1 decode_step_ms를 **이론 하한**과 비교하세요. 몇 배 느린가요?
-   그 차이는 어디서 올까요? 힌트: `nvidia-smi`로 batch=1 실행 중 GPU utilization을 보면 생각보다 낮습니다. GPU가 일을 안 하는 시간 = Python이 다음 커널을 준비하는 시간.
+   그 차이는 어디서 올까요? 힌트: `nvidia-smi`로 batch=1 실행 중 GPU utilization을 보면 생각보다 낮습니다. GPU가 비는 이유로 CPU 준비나 동기화가 있을 수 있습니다. Session 6에서는 trace로 확인합니다.
 4. **nocache**: decode_step_ms가 batch 실험의 batch=1 값보다 몇 배인가요? 출력이 64가 아니라 1024라면 어떻게 될까요?
 
 > ⚠️ 이 스크립트는 step마다 `torch.cuda.synchronize()`를 부릅니다. 정확한 측정을 위해서지만, 그 자체가 약간의 overhead입니다.
@@ -74,7 +74,7 @@ weights = 3.44 GB → batch=1 decode 이론 하한 ≈ 3.41 ms/step (대역폭 1
 ## 2. HF `generate()` 기준선 (8분)
 
 ```bash
-python session01_fundamentals/code/hf_generate_baseline.py --batches 1,8,32 --out results/s01_hf.csv
+python3 session01_fundamentals/code/hf_generate_baseline.py --batches 1,8,32 --out results/s01_hf.csv
 ```
 
 | batch | e2e_s | output_tok_per_s | peak_mem_gib |
@@ -128,13 +128,13 @@ grep -E "Load weight end|KV Cache is allocated|max_total_num_tokens=|CUDA graph 
 **과제와 연결**: `#tokens` 값을 `common/kvcalc.py`로 계산한 값(약 12만)과 비교하세요.
 
 ```bash
-python common/kvcalc.py Qwen/Qwen3-1.7B --params-b 1.72
+python3 common/kvcalc.py Qwen/Qwen3-1.7B --params-b 1.72
 ```
 
 ### 3-3. 요청 보내기
 
 ```bash
-python session01_fundamentals/code/first_requests.py
+python3 session01_fundamentals/code/first_requests.py
 ```
 
 네 가지를 순서대로 해 봅니다.
@@ -163,17 +163,17 @@ ps -eo pid,comm,args | grep -E "sglang" | grep -v grep
 ## 4. 같은 workload를 SGLang으로 (10분)
 
 ```bash
-python session01_fundamentals/code/sglang_same_workload.py --batches 1,8,32 --out results/s01_sglang.csv
+python3 session01_fundamentals/code/sglang_same_workload.py --batches 1,8,32 --out-len 64 --out results/s01_sglang.csv
 ```
 
-| batch | HF e2e_s | SGLang e2e_s | HF tok/s | SGLang tok/s | SGLang ITL p50 (ms) |
+| batch | HF manual decode tok/s | SGLang 요청 전체 tok/s | SGLang batch wall time (s) | SGLang ITL p50 (ms) |
 |---:|---:|---:|---:|---:|---:|
 | 1 | | | | | |
 | 8 | | | | | |
 | 32 | | | | | |
 
 토론 (조별 3분):
-- 같은 GPU, 같은 weight, 같은 greedy decoding인데 왜 다른가? 후보를 3개 이상 적어 보세요. (힌트: 이론 §8 표)
+- 두 파일에서 처리량의 분모로 잰 시간이 어디서 시작해 어디서 끝나는지 써 보세요. 차이가 생길 요인을 세 가지 적습니다. (힌트: 이론 §8 표)
 - SGLang batch=1 ITL은 이론 하한 3.4 ms에 얼마나 가까운가요?
 - HF는 batch 32가 "동시에 도착"해야만 가능했습니다. SGLang은 요청이 따로 도착해도 묶어 줍니다. 이 차이는 이 표에 드러나 있나요? (드러나 있지 않습니다 — 그래서 Session 2에서 다른 측정 방법이 필요합니다.)
 
@@ -193,7 +193,7 @@ tar czf s01_$(date +%m%d).tgz results logs
 그래프는 로컬에서:
 
 ```bash
-python common/plot.py results/s01_hf.csv results/s01_sglang.csv \
+python3 common/plot.py results/s01_hf.csv results/s01_sglang.csv \
   --x batch --y output_tok_per_s,e2e_s --group engine --logx --out figures/s01_hf_vs_sglang.png
 ```
 

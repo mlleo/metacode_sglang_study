@@ -17,16 +17,16 @@
 
 | 시간 | 순서 | 자료 |
 |---|---|---|
-| 0:00–0:15 | **오리엔테이션** (발표 대신): 스터디 목표·원칙·예산 규칙, RunPod 계정 확인 → **바로 Pod Deploy + `setup_pod.sh` 시작** | |
-| 0:15–0:55 | **이론** — §1 → §3 → §4 → §5 → §7 → §8 (★ 절). 📖 절은 복습 자료 (발표 시작 전에 Pod Deploy + setup을 걸어 두면 이론 중에 설치가 끝남) | [lecture.md](lecture.md) |
-| 0:55–1:50 | **실습** — 실습 0·1·3·4·5 (2는 과제로) | [lab.md](lab.md) |
+| 0:00–0:15 | **오리엔테이션** (발표 대신): 스터디 목표·원칙·예산 규칙, RunPod 계정 확인 · 로컬 mock 확인 | |
+| 0:15–0:55 | **이론** — 강의 노트 상단의 40분 진행안. GPU는 실습 준비에 필요한 시점에만 시작 | [lecture.md](lecture.md) |
+| 0:55–1:50 | **실습** — 실습 0·1·3·4·5 (2는 선택 · 강사 기준선 사용 가능) | [lab.md](lab.md) |
 | 1:50–2:00 | **과제 안내** | [assignment.md](assignment.md) |
 
 ## 사전 준비 (수강생, 수업 전 집에서)
 
 - [ ] RunPod 가입, 크레딧 $20 확인
 - [ ] 이 레포 fork → 로컬 clone
-- [ ] 로컬에서 `python common/mock_server.py` + `python common/client.py --input-len 128` 이 동작하는지 확인
+- [ ] 로컬에서 `python3 common/mock_server.py` + `python3 common/client.py --input-len 128` 이 동작하는지 확인
       (Python 3.10+, `pip install requests matplotlib pandas`)
 - [ ] (선택) "Attention Is All You Need"의 Figure 1, 또는 Transformer decoder 구조 그림 한 번 보기
 

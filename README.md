@@ -11,7 +11,7 @@
 | 기준 버전 | **SGLang v0.5.23** (2026-10-28 릴리스) — 모든 코드 리딩 경로와 플래그가 이 버전 기준 |
 | 표준 모델 | `Qwen/Qwen3-1.7B` (BF16, GQA 16:8) — 필요 시 `Qwen/Qwen3-0.6B` |
 | 표준 GPU | RunPod **RTX 4090 24GB** (Community Cloud), CUDA 13 필터 필수 |
-| 예산 | 1인 **$20** — 회차별 배분은 [docs/runpod_guide.md](docs/runpod_guide.md#예산-20-배분) |
+| 예산 | 개인 RunPod 계정 사용. **$20**은 계획 기준이며 과제와 최종 프로젝트 포함. 회차별 배분은 [docs/runpod_guide.md](docs/runpod_guide.md#예산-20-배분) |
 
 ---
 
@@ -84,12 +84,12 @@ sessionNN_xxx/
 
 | 시간 | 순서 | 내용 |
 |---|---|---|
-| 0:00–0:15 | **지난 과제 발표** | 2명 × 5분 발표 + 질의 (1회차는 오리엔테이션·환경 점검으로 대체). **이 시간에 Pod Deploy + setup 시작** |
-| 0:15–0:55 | **이론** | `lecture.md`의 ★ 절 — 핵심 질문 → 개념 → 코드 → 예측 질문 |
-| 0:55–1:50 | **실습** | `lab.md`의 필수 실습 — GPU ON → 측정 → 결과 저장 → **GPU OFF** |
+| 0:00–0:15 | **지난 과제 발표** | 2명 × 5분 발표 + 질의 (1회차는 오리엔테이션·환경 점검으로 대체). 계정과 로컬 환경 확인. Pod는 실습 준비 시간에 시작 |
+| 0:15–0:55 | **이론** | `lecture.md` 상단의 40분 진행안 |
+| 0:55–1:50 | **실습** | `lab.md`의 필수 실습 — 측정 → 결과 다운로드 → **Pod Terminate** |
 | 1:50–2:00 | **과제 안내** | `assignment.md` — 무엇을, 어떤 형식으로, 다음 시간에 누가 발표하는가 |
 
-- `lecture.md`는 **수업 + 복습용 완결 자료**입니다. ★ 절이 수업 핵심, 📖 절은 복습·심화(코드 발췌, 풀이 예제, 자기 점검 문제와 답). 강사는 필요한 절만 골라 씁니다.
+- 강의 노트 상단에 40분 동안 펼칠 절과 학생이 직접 할 일이 있습니다. ★는 각 주제의 핵심 절, 📖는 복습과 심화입니다. 수업에서 건너뛴 코드와 자기 점검 문제는 과제 전에 다시 볼 수 있습니다.
 - `lab.md`는 2시간 수업에 다 하기엔 많습니다. 각 회차 `README.md`의 "실습" 칸에 적힌 번호가 필수이고, 나머지는 선택·과제·강사 시연용입니다.
 
 ---
@@ -102,14 +102,14 @@ git clone https://github.com/<your-id>/metacode_sglang_study.git
 cd metacode_sglang_study
 
 # 1) 로컬에서 GPU 없이 스크립트 디버깅 (mock 서버) — GPU 비용 0원
-python common/mock_server.py &                 # 가짜 SGLang 서버
-python common/client.py --input-len 512        # 측정 클라이언트가 잘 도는지 확인
+python3 common/mock_server.py &                 # 가짜 SGLang 서버
+python3 common/client.py --input-len 512        # 측정 클라이언트가 잘 도는지 확인
 
 # 2) RunPod Pod 안에서 (docs/runpod_guide.md 참고)
 git clone https://github.com/<your-id>/metacode_sglang_study.git && cd metacode_sglang_study
 bash common/setup_pod.sh                       # driver 확인, SGLang 0.5.23 설치, 모델 다운로드
 bash common/launch.sh baseline                 # 서버 시작 (logs/server_baseline.log)
-python common/client.py --prompt "The capital of France is" --allow-eos
+python3 common/client.py --prompt "The capital of France is" --allow-eos
 bash common/stop.sh
 ```
 
@@ -136,9 +136,8 @@ bash common/stop.sh
 - [docs/instructor_guide.md](docs/instructor_guide.md) — 강사용: 사전 리허설, 발표 운영, 채점, 자주 막히는 지점
 - [submissions/README.md](submissions/README.md) — 과제 제출 방법 (fork → PR)
 
-> ⚠️ **자료 상태:** 모든 명령·플래그·로그 형식·코드 경로는 SGLang v0.5.23 소스와 대조했고, 측정 도구는 mock 서버로 테스트했습니다.
-> 하지만 **실제 GPU에서의 전 회차 리허설은 아직**입니다. 강사는 수업 전에 [instructor_guide.md §1](docs/instructor_guide.md#1-개강-전-12주-전)의 체크리스트대로 한 번씩 돌려 주세요.
-> 실습 표의 빈칸과 예측 질문의 기준 범위는 리허설 결과로 채우는 것을 권장합니다.
+> **개강 전 검증**
+> H100은 설치, 실행, 결과 파일 확인에 쓸 수 있습니다. 수강생용 시간과 비용, 자동 설정, FP8 동작은 RTX 4090 RunPod에서 확인합니다. 강사용 [GPU 리허설 절차](docs/instructor_guide.md#1-개강-전-12주-전)를 따릅니다.
 
 ## 스터디 원칙
 
