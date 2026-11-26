@@ -81,7 +81,7 @@ python3 common/logparse.py results/final/lpm-standard-s22.log
 mkdir -p figures/final
 python3 session04_scheduler/code/plot_timeline.py \
   results/final/mixed-confirm/raw/{baseline,mixed_chunk}_standard_s22.timeline.json \
-  --out figures/final/mixed-timeline.png
+  --gap-label "SSE chunk gap (ms)" --out figures/final/mixed-timeline.png
 ```
 
 ## 5. 결과를 읽고 문제를 고치는 순서

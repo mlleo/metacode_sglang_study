@@ -5,12 +5,13 @@ import json
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "final_projects"))
 from analyze import load_campaign, paired_interval, summarize_campaign
 from run import planned_runs, select_configs
-from workloads import make_workload, summarize_workload
+from workloads import make_workload, measure_request, summarize_workload
 
 
 class FinalProjectTests(unittest.TestCase):
@@ -69,6 +70,14 @@ class FinalProjectTests(unittest.TestCase):
         metrics = summarize_workload("batch", samples, 3.1)
         self.assertAlmostEqual(metrics["job_finish_s_p95"], 2.9)
         self.assertEqual(metrics["http_e2e_ms_p95"], 1000.0)
+
+    def test_incomplete_stream_is_an_error(self):
+        response = {"t_start": 10.0, "e2e": 0.5, "ttft": 0.1, "completion_tokens": 3,
+                    "prompt_tokens": 1, "token_times": [10.1], "text": "mock", "stream_done": False}
+        spec = {"idx": 0, "input_ids": [1000], "max_new_tokens": 3}
+        with patch("workloads.generate", return_value=response):
+            result = measure_request(spec, 10.0, "http://localhost", 1.0)
+        self.assertIn("[DONE]", result["error"])
 
     def test_campaign_rejects_input_mismatch_and_missing_pair(self):
         with tempfile.TemporaryDirectory() as temp:

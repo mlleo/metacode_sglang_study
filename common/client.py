@@ -90,6 +90,7 @@ def generate(
         prompt_tokens / completion_tokens / cached_tokens   서버 meta_info 값
         text            생성된 텍스트 (누적)
         t_start         요청 시작 시각 (time.perf_counter 기준, 타임라인 그릴 때 사용)
+        stream_done     스트림에서 [DONE]을 받았는지 (stream=True일 때)
         token_times     청크가 도착한 시각들 (perf_counter 기준, stream=True일 때만). Session 4 ITL 타임라인용
     """
     body = _payload(prompt, input_ids, max_new_tokens, temperature, ignore_eos, stream, extra_sampling)
@@ -120,6 +121,7 @@ def generate(
     last_n = 0
     meta: Dict[str, Any] = {}
     text = ""
+    stream_done = False
     with requests.post(f"{url}/generate", json=body, stream=True, timeout=timeout) as r:
         r.raise_for_status()
         for raw in r.iter_lines():
@@ -130,6 +132,7 @@ def generate(
                 continue
             data = line[len("data:"):].strip()
             if data == "[DONE]":
+                stream_done = True
                 break
             chunk = json.loads(data)
             now = time.perf_counter()
@@ -160,6 +163,7 @@ def generate(
         "text": text,
         "t_start": t0,
         "token_times": token_times,
+        "stream_done": stream_done,
     }
 
 

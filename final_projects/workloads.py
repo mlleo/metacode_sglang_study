@@ -66,6 +66,8 @@ def measure_request(
         response["token_times"] = [value - origin for value in response["token_times"]]
         response.pop("text")
         record.update(response)
+        if not record["stream_done"]:
+            raise ValueError("스트림이 [DONE]을 보내기 전에 끝났습니다.")
         if record["completion_tokens"] != spec["max_new_tokens"] or record["prompt_tokens"] != record["input_len"]:
             raise ValueError("서버에서 보고한 입력 또는 출력 길이가 요청과 다릅니다.")
         if record["ttft"] is None or not record["token_times"]:

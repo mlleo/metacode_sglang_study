@@ -13,9 +13,9 @@ from pathlib import Path
 # Two-sided 95% Student t critical values, degrees of freedom 1–9.
 T975 = (12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262)
 OBJECTIVES = {
-    "prefix": ("ttft_ms_p95", False),
-    "mixed": ("document_ttft_ms_mean", False),
-    "batch": ("output_tok_per_s", True),
+    "prefix": ("ttft_ms_p95", False, "p95 TTFT (ms)"),
+    "mixed": ("document_ttft_ms_mean", False, "Mean document TTFT (ms)"),
+    "batch": ("output_tok_per_s", True, "Output throughput (tok/s)"),
 }
 
 
@@ -61,7 +61,7 @@ def load_campaign(path: Path) -> tuple[dict, dict]:
 
 def summarize_campaign(manifest: dict, rows: dict, chat_itl: float, chat_gap: float, deadline: float) -> list[dict]:
     track = manifest["track"]
-    metric, maximize = OBJECTIVES[track]
+    metric, maximize, _ = OBJECTIVES[track]
     tests = {
         "prefix": (),
         "mixed": (("chat_itl_ms_p99", chat_itl), ("chat_gap_ms_max", chat_gap)),
@@ -98,7 +98,7 @@ def summarize_campaign(manifest: dict, rows: dict, chat_itl: float, chat_gap: fl
     return summaries
 
 
-def draw(path: Path, summaries: list[dict], profiles: list[str]) -> None:
+def draw(path: Path, summaries: list[dict], profiles: list[str], track: str) -> None:
     import matplotlib.pyplot as plt
 
     fig, axes = plt.subplots(1, len(profiles), figsize=(5.5 * len(profiles), 4), squeeze=False)
@@ -113,7 +113,7 @@ def draw(path: Path, summaries: list[dict], profiles: list[str]) -> None:
         ax.axvline(0, color="#999999", linewidth=1)
         ax.set_yticks(range(len(selected)), [f"{r['config']} ({r['status']})" for r in selected])
         ax.set_title(profile)
-        ax.set_xlabel(f"{selected[0]['objective']} delta vs {selected[0]['baseline']}")
+        ax.set_xlabel(f"{OBJECTIVES[track][2]} change vs baseline")
         ax.grid(axis="x", alpha=0.25)
     fig.tight_layout()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -150,7 +150,7 @@ def main() -> None:
                 writer.writeheader()
                 writer.writerows(summaries)
         if args.plot:
-            draw(args.plot, summaries, manifest["profiles"])
+            draw(args.plot, summaries, manifest["profiles"], manifest["track"])
     except (KeyError, ValueError, OSError, TypeError) as error:
         parser.exit(1, f"분석 중단. {error}\n")
 

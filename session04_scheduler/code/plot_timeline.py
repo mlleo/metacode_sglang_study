@@ -21,6 +21,7 @@ def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("timelines", nargs="+")
     p.add_argument("--out", required=True)
+    p.add_argument("--gap-label", default="ITL (ms)")
     args = p.parse_args()
 
     fig, axes = plt.subplots(len(args.timelines), 1, figsize=(9, 2.6 * len(args.timelines)),
@@ -34,7 +35,7 @@ def main() -> None:
         for a in d["aggressors"].values():
             ax.axvline(a["arrive_s"], ls="--", c="k", lw=0.8)
         ax.set_yscale("log")
-        ax.set_ylabel("ITL (ms)")
+        ax.set_ylabel(args.gap_label)
         ax.set_title(d["tag"], fontsize=10, loc="left")
         ax.grid(alpha=0.3)
     axes[-1, 0].set_xlabel("time (s)")
