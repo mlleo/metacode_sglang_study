@@ -1,0 +1,26 @@
+{
+  "prefix": {
+    "common": ["--max-total-tokens", "24576", "--cuda-graph-max-bs-decode", "32"],
+    "configs": {
+      "baseline": ["--schedule-policy", "fcfs", "--radix-eviction-policy", "lru"],
+      "lpm": ["--schedule-policy", "lpm", "--radix-eviction-policy", "lru"],
+      "lfu": ["--schedule-policy", "fcfs", "--radix-eviction-policy", "lfu"]
+    }
+  },
+  "mixed": {
+    "common": ["--cuda-graph-max-bs-decode", "32"],
+    "configs": {
+      "baseline": ["--chunked-prefill-size", "1024"],
+      "mixed_chunk": ["--chunked-prefill-size", "1024", "--enable-mixed-chunk"],
+      "decode_interval": ["--chunked-prefill-size", "1024", "--prefill-decode-interval", "1"]
+    }
+  },
+  "batch": {
+    "common": ["--cuda-graph-max-bs-decode", "32"],
+    "configs": {
+      "baseline": ["--max-running-requests", "8"],
+      "cap16": ["--max-running-requests", "16"],
+      "cap32": ["--max-running-requests", "32"]
+    }
+  }
+}

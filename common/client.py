@@ -21,7 +21,7 @@ import json
 import os
 import random
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import requests
 
@@ -77,8 +77,11 @@ def generate(
     url: str = DEFAULT_URL,
     timeout: float = 600.0,
     extra_sampling: Optional[Dict[str, Any]] = None,
+    on_first_token: Optional[Callable[[], None]] = None,
 ) -> Dict[str, Any]:
     """SGLang native `/generate`를 호출하고 지연시간 지표를 돌려준다.
+
+    on_first_token은 첫 토큰이 담긴 스트리밍 청크를 받았을 때 한 번 호출합니다.
 
     반환 dict:
         ttft            첫 token이 클라이언트에 도착할 때까지 (s). stream=False면 None
@@ -139,6 +142,8 @@ def generate(
             token_times.append(now)
             if ttft is None:
                 ttft = now - t0
+                if on_first_token is not None:
+                    on_first_token()
                 # 첫 청크에 token이 여러 개 실려 오면 나머지는 ITL 0으로 취급하지 않고 버린다.
             else:
                 gap = (now - last_t) / new_tokens
