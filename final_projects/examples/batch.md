@@ -12,3 +12,5 @@
 4. stress에서는 96개 중 24개의 출력이 길어집니다. 처리량이 높은데도 배치 끝이 밀릴 수 있으므로 profile별 목표 통과 여부와 마지막 몇 개의 `finish_s`를 기록합니다.
 
 [수업 H100의 HTTP graph 상한 예시](../../docs/worked-results/session05.md#재현)에서는 실제 `#running-req` 16에서 graph가 적용됐고 64에서 적용되지 않았습니다. 프로젝트에서 client 동시성과 실제 batch 크기를 따로 보는 이유입니다.
+
+같은 수업 실행에서 입력·출력 256인 요청을 128개씩 보냈습니다. 두 조건 모두 전부 완료했습니다. client 동시성 16은 5.69초에 5,759 tok/s, 64는 6.73초에 4,866 tok/s였습니다. 연습용 마감을 6초로 두면 16만 통과합니다. 요청의 p95 HTTP E2E인 717 ms와 3,376 ms를 사용하면 전체 배치 마감을 잘못 판정합니다. 이 수업 비교에서는 client 동시성을 바꿨습니다. 프로젝트에서는 client worker 수를 고정한 상태에서 서버 상한을 바꾸므로 각각의 통제 변수를 보고서에 적으세요. [수업 CSV](data/batch_graph_reference.csv) · [서빙 로그](../../docs/worked-results/data/s05_http_graph_limit.txt)
