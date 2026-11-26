@@ -6,7 +6,12 @@
 
 - ★ 수업 핵심 / 📖 복습·심화
 - 코드 발췌는 **SGLang v0.5.23**에서 가져와 **간추린 것**입니다 (로깅·멀티모달·분산·예외 처리 제거). 원문 위치는 각 발췌 위에 적었습니다.
-- 수업용 추천 구성: §0 → §1.1–1.2 → §2.1 → §3.1–3.2 → §4.1–4.2 → §5.1–5.4 → §6.1
+**수업 40분**
+
+- 10분 · §1.1과 §2.1을 보고 첫 응답이 지나가는 경로를 화살표로 그립니다.
+- 15분 · §3.2의 규칙으로 §4.1 타임라인에서 D가 들어온 다음 칸을 채웁니다.
+- 10분 · §5.1, §5.4–5.5에서 오늘의 동시성 sweep과 도착률 sweep이 각각 어떤 질문에 답하는지 짚습니다.
+- 5분 · §6.1 로그 한 줄에서 실행 중인 요청 수와 대기 중인 요청 수를 찾아 표시합니다.
 
 ## 목차
 
@@ -248,7 +253,7 @@ while True:
     self.last_batch = batch
 ```
 
-이 루프 한 바퀴 = **iteration** 하나 = GPU forward 한 번(prefill batch 또는 decode batch).
+할 일이 있는 iteration에서 기본 dense 경로는 다음 batch의 forward를 실행합니다. 대기열과 running batch가 모두 비어 있으면 GPU forward 없이 idle 처리를 합니다.
 
 ### 3.2 `get_next_batch_to_run`의 결정 규칙
 
@@ -303,26 +308,23 @@ while True:
 
 ### 4.1 타임라인
 
-요청 A(출력 2), B(출력 6), C(출력 3)가 t=0에, D가 t=2에 도착. 한 칸 = decode step 1번.
+이미 prefill을 끝낸 A, B, C에 남은 출력은 각각 2, 6, 3 token입니다. D는 두 번째 decode round 직후에 도착하고 총 6 token을 생성합니다. `D`는 decode 한 번, `P`는 prefill과 첫 출력, `·`은 빈 슬롯, `—`는 그 round에 실행하지 않음을 뜻합니다.
 
 ```text
-Static batching (batch를 한 번 만들면 다 끝날 때까지 고정)
-step:  1  2  3  4  5  6  7  8  9 10 11 12
- A    ██ ██ ·· ·· ·· ··                     ← 끝났는데 자리 차지 (빈 슬롯)
- B    ██ ██ ██ ██ ██ ██
- C    ██ ██ ██ ·· ·· ··
- D                      ██ ██ ██ ██ ██ ██   ← t=2에 왔지만 다음 batch까지 대기
+고정 batch       1  2  3  4  5  6  7  8  9 10 11 12
+ A              D  D  ·  ·  ·  ·  —  —  —  —  —  —
+ B              D  D  D  D  D  D  —  —  —  —  —  —
+ C              D  D  D  ·  ·  ·  —  —  —  —  —  —
+ 새 요청 D      —  —  —  —  —  —  P  D  D  D  D  D
 
-Continuous batching (iteration-level scheduling)
-step:  1  2  3  4  5  6  7  8
- A    ██ ██
- B    ██ ██ ██ ██ ██ ██
- C    ██ ██ ██
- D          ▓▓ ██ ██ ██ ██ ██               ← 도착 다음 iteration에 prefill(▓) 후 합류
+continuous      1  2  3  4  5  6  7  8
+ A              D  D  —  —  —  —  —  —
+ B              D  D  —  D  D  D  D  —
+ C              D  D  —  D  —  —  —  —
+ 새 요청 D      —  —  P  D  D  D  D  D
 ```
 
-static: 12 step 동안 슬롯 4 × 12 = 48칸 중 실제 일 17칸 (35%). continuous: 8 step, 빈칸 없음에 가까움.
-그리고 **D의 TTFT**가 6 step → 1 step으로 줄었습니다.
+고정 batch의 첫 묶음은 decode 슬롯 18개 중 11개만 씁니다. Continuous batching에서는 D의 prefill이 3번 round에 먼저 들어오므로 B와 C의 decode가 한 번 쉽니다. D는 고정 batch에서 decode 네 번이 끝날 때까지 추가로 기다립니다. 그림의 칸 수는 실행 순서를 보여 주며, prefill과 decode 한 번이 같은 시간이라는 가정은 없습니다.
 
 ### 4.2 무엇이 있어야 가능한가
 
@@ -349,9 +351,11 @@ SGLang 기본값은 섞지 않고 iteration마다 prefill 또는 decode 중 하�
 | 규칙 | 항상 C개 요청이 열려 있음. 하나 끝나면 다음 요청 | 초당 λ개가 (Poisson으로) 도착. 서버 상태와 무관 |
 | 벤치마크 인자 | `--max-concurrency C` | `--request-rate λ` |
 | 닮은 현실 | 사용자 수가 정해진 내부 도구, 배치 작업, 에이전트 워커 풀 | 공개 서비스 트래픽 |
-| 서버가 느려지면 | 요청이 덜 들어온다 (**자동 감속**) | **대기열이 끝없이 쌓인다** |
+| 서버가 느려지면 | 완료 속도에 맞춰 새 요청도 줄어듦 | 도착률이 지속 가능한 처리율을 넘으면 대기열이 늘어남 |
 
 같은 서버라도 어느 부하로 재느냐에 따라 "좋아 보이는 숫자"가 다릅니다. 리포트에는 **어느 방식인지 반드시 적습니다.**
+
+`common/loadgen.py`에서 유한 도착률과 동시성 상한을 같이 주면 초과 요청은 클라이언트에서 기다립니다. 이 경우 HTTP TTFT에는 로컬 대기가 빠집니다. `--raw-dir`의 `t_start_rel - t_arrival_rel`로 그 대기를 확인하세요.
 
 closed-loop의 함정(📖): 서버가 잠깐 멈추면 클라이언트도 새 요청을 안 보내므로 "멈춘 동안 도착했어야 할 요청들"의 대기 시간이 측정에서 빠집니다.
 부하 테스트 분야에서 **coordinated omission**이라 부르는 현상입니다. 그래서 "용량(capacity)"은 open-loop로 확인합니다.
@@ -365,8 +369,8 @@ L = λ × W        (평균 동시 요청 수 = 도착률 × 평균 체류 시간
 예제:
 
 1. 동시성 32 (closed-loop), 요청당 E2E 4초 → 처리량 λ ≈ 32 / 4 = **8 req/s**.
-2. 8 req/s가 도착(open-loop)하는데 E2E가 4초면 서버 안에 평균 32개가 떠 있습니다 → KV 메모리가 32개 분량 필요.
-3. 요청당 평균 768 token(입력 512 + 출력 256), KV pool 12만 token이면 메모리 기준 동시 수용 ≈ 156개. 즉 이 workload에서는 메모리보다 **step 시간**이 먼저 한계에 옵니다 — Session 1 §5.4의 ridge(≈ batch 165)와 비슷한 수준이라는 것도 우연이 아닙니다.
+2. 안정 상태에서 8 req/s가 들어오고 평균 E2E가 4초라면 관측 구간에 평균 32개가 있습니다. 그중에는 큐에서 기다리는 요청도 있습니다. KV 사용량을 계산하려면 실제로 할당받은 요청 수와 길이를 따로 확인합니다.
+3. 각 요청에 768슬롯을 잡고 공유가 없다고 가정하면 12만 슬롯에 최대 약 156개가 들어갑니다. 실제로 어느 자원이 먼저 한계에 닿는지는 queue 길이, 실행 중인 요청 수, KV 점유율을 함께 보고 판단합니다.
 
 ### 5.3 대기열은 왜 갑자기 폭발하나 (📖)
 
@@ -412,12 +416,13 @@ latency
 
 ```text
 SLO 예시:  p95 TTFT ≤ 500 ms  그리고  p95 ITL ≤ 50 ms
-capacity : SLO를 만족하는 최대 부하
-goodput  : SLO를 만족한 요청만 센 throughput
+closed-loop 한계 : 이 sweep에서 SLO를 만족한 최대 동시성
+open-loop 용량   : 큐가 계속 늘지 않으면서 SLO를 만족하는 최대 도착률
+request goodput : 개별 지연 기준을 모두 만족한 성공 요청 수 ÷ 측정 시간
 ```
 
 DistServe(OSDI '24) 같은 연구는 "throughput 대신 goodput을 최대화하자"는 관점으로 prefill/decode 분리 설계를 정당화했습니다 (Session 6 §5).
-`sglang.benchmark.serving`도 `--goodput` 인자로 SLO 기준 goodput을 계산할 수 있습니다.
+`--goodput`은 개별 요청의 TTFT, TPOT, E2E를 검사합니다. 위의 p95 ITL처럼 여러 요청의 token 간격을 합쳐 계산한 조건은 따로 평가합니다.
 
 ---
 
@@ -451,7 +456,7 @@ Decode batch, #running-req: 16, #token: 9216, token usage: 0.07, cuda graph: Tru
 ### 6.2 공식 벤치마크 도구
 
 ```bash
-python -m sglang.benchmark.serving --backend sglang --port 30000 --model Qwen/Qwen3-1.7B \
+python3 -m sglang.benchmark.serving --backend sglang --port 30000 --model Qwen/Qwen3-1.7B \
   --dataset-name random-ids --random-input-len 512 --random-output-len 256 --random-range-ratio 1.0 \
   --num-prompts 128 --max-concurrency 32 --output-file results/x.jsonl
 ```
@@ -459,7 +464,7 @@ python -m sglang.benchmark.serving --backend sglang --port 30000 --model Qwen/Qw
 | 인자 | 주의할 점 |
 |---|---|
 | `--dataset-name random-ids` | 랜덤 token id로 정확한 길이의 프롬프트 (다운로드 불필요). `random`은 ShareGPT 텍스트를 받아 씀 |
-| `--random-range-ratio 1.0` | 모든 요청 길이를 정확히 같게. **기본값 0.0이면 길이가 0~지정값 사이에서 랜덤** → 비교가 흐려짐 |
+| `--random-range-ratio 1.0` | 모든 요청 길이를 정확히 같게. **기본값 0.0이면 양수 길이는 1~지정값 사이에서 랜덤** → 비교가 흐려짐 |
 | `--max-concurrency` / `--request-rate` | closed / open loop. 둘 다 주면 "λ로 도착하되 동시 C개까지만" |
 | `--num-prompts` | 동시성의 수 배 이상이어야 정상 상태(steady state) 구간이 생김 |
 | `--flush-cache`, `--warmup-requests` | 측정 전 cache 비우기, 워밍업 |
@@ -469,12 +474,12 @@ python -m sglang.benchmark.serving --backend sglang --port 30000 --model Qwen/Qw
 출력 지표 정의 (벤치마크 클라이언트 쪽에서 계산):
 
 - TTFT: 요청 전송 → 첫 스트림 청크 도착
-- ITL: 연속한 스트림 청크 사이 간격. 청크 하나에 token이 여러 개 오면 간격을 token 수로 나눠 token마다 기록 (sglang backend 기준, `benchmark/serving.py`). 우리 `common/client.py`도 같은 방식
-- 첫 token 시각은 **텍스트가 비어 있지 않은 첫 청크** 기준 (한국어처럼 글자가 덜 완성된 청크는 건너뜀 — §2.5)
+- ITL: 연속한 스트림 청크 사이 간격. 청크 하나에 token이 여러 개 오면 간격을 token 수로 나눠 token마다 기록 (sglang backend 기준, `benchmark/serving.py`). 우리 `common/client.py`도 청크 간격을 새 token 수로 나눕니다
+- 공식 도구의 SGLang backend는 텍스트가 비어 있지 않은 첫 청크를 기준으로 삼습니다. `common/client.py`는 `completion_tokens`가 처음 증가한 청크를 쓰므로 둘의 TTFT가 다를 수 있습니다.
 - TPOT: (E2E − TTFT) / (출력 token 수 − 1)
 - concurrency: Σ(요청별 E2E) / 전체 시간 = 실제로 측정된 평균 동시 요청 수 (Little's law의 L)
 
-구 경로 `python -m sglang.bench_serving`도 동작하지만 deprecated 경고가 뜹니다.
+구 경로 `python3 -m sglang.bench_serving`도 동작하지만 deprecated 경고가 뜹니다.
 
 ---
 

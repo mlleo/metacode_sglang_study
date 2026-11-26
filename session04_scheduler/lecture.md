@@ -6,7 +6,14 @@
 
 - ★ 수업 핵심 / 📖 복습·심화
 - 코드 발췌는 **SGLang v0.5.23** 기준이며 간추린 것입니다. 이 회차의 코드는 특히 많이 간추렸습니다 — 원문에는 SWA, Mamba, DLLM, PD 분리, 우선순위, HiCache 분기가 섞여 있습니다. "일반 dense 모델, GPU 1장" 경로만 남겼습니다.
-- 수업용 추천 구성: §0 → §1 → §2.1–2.4 → §2.5(숫자 예제) → §3.1–3.3 → §4.1–4.6 → §5.1 → §7
+**수업 40분**
+
+- 12분 · §2.1과 §2.5에서 빈 슬롯, 이미 실행 중인 요청의 예약분, 이번 prefill 예산을 각각 표시합니다.
+- 8분 · §2.4와 §3.1을 읽고 fixed-length 요청에서 예약이 어떻게 달라지는지 계산합니다.
+- 15분 · §4.3–4.5의 세 타임라인에 기존 요청의 다음 token이 나오는 자리를 그립니다.
+- 5분 · 긴 입력을 준 사용자와 이미 생성 중인 사용자가 각각 어떤 지연을 겪는지 설명합니다.
+
+루프 전체와 overlap scheduling은 위 그림을 설명할 수 있게 된 뒤 읽습니다.
 
 ## 목차
 
@@ -128,7 +135,7 @@ def get_new_batch_prefill(self, running_batch):
 |---|---|---|---|
 | `rem_total_tokens` | **KV 메모리** (지금 + 앞으로 생성할 몫까지) | pool 크기 ≈ 12만 token | `--mem-fraction-static`, `--max-total-tokens` |
 | `rem_input_tokens` | 이번 prefill batch의 계산량 | 16384 | `--max-prefill-tokens` |
-| `rem_chunk_tokens` | 요청 하나를 한 번에 prefill할 최대 길이 | 4096 | `--chunked-prefill-size` |
+| `rem_chunk_tokens` | 한 iteration에서 prefill 요청들이 함께 쓰는 chunk 예산 | 4096 | `--chunked-prefill-size` |
 | 요청 슬롯 | 동시에 running일 수 있는 요청 수 | 자동 계산 | `--max-running-requests` |
 
 `rem_input_tokens`와 `rem_chunk_tokens`는 **계산량(시간)** 제한, `rem_total_tokens`는 **메모리** 제한입니다. 셋 중 먼저 바닥나는 것이 이번 iteration을 끝냅니다.
@@ -198,7 +205,7 @@ rem_total_tokens = (빈 슬롯 + evictable 캐시)
 
 ### 2.3 핵심 질문: 실행 중 요청의 "앞으로 생성할 몫"을 얼마로 잡나
 
-- 전부(×1.0) 잡으면: 절대 메모리가 모자라지 않지만, 대부분의 요청은 `max_new_tokens` 전에 EOS로 끝나므로 **메모리가 남아도는데 새 요청을 못 받음** (throughput↓)
+- 예약 비율을 1.0으로 잡으면 더 보수적으로 승인합니다. 생성 길이 추정에는 여전히 4096-token 상한이 있고, 요청이 `max_new_tokens` 전에 EOS로 끝나므로 **메모리가 남아도는데 새 요청을 못 받음** (throughput↓)
 - 조금만 잡으면: 많이 받아들이지만 **실제로 길게 생성하면 모자람** → retraction (§3)
 
 SGLang의 답: **`new_token_ratio`라는 학습하는 낙관도**
@@ -231,7 +238,7 @@ def estimate_new_token_ratio_after_retract(reqs):     # retraction 직후의 새
 | decode step마다 | 조금씩 감소 → 최소 0.098 — "점점 더 과감하게" |
 | retraction 발생 시 | "남은 요청들이 실제로 지금까지 생성한 비율 + 여유(20 step)"로 다시 추정 → 대개 **높게** — "혼나고 나서 조심" |
 
-전형적인 AIMD(additive increase, multiplicative decrease)와 비슷한 피드백 제어입니다 — TCP 혼잡 제어처럼 "문제가 없으면 조금씩 더 밀어붙이고, 문제가 생기면 크게 물러선다".
+메모리 부족이 없으면 예약 비율을 조금씩 낮추고, retraction 뒤에는 남은 요청의 진행량을 반영해 다시 계산합니다.
 
 ### 2.4 ⚠️ 벤치마크가 스케줄러를 바꾼다
 
@@ -240,7 +247,7 @@ def estimate_new_token_ratio_after_retract(reqs):     # retraction 직후의 새
 
 - 즉 지금까지의 측정은 **"가장 보수적인 admission"** 조건이었습니다.
 - 실제 서비스(EOS로 끝나는 요청)에서는 같은 서버가 더 많은 요청을 동시에 받고, 대신 retraction이 생길 수 있습니다.
-- 오늘 실습 1에서 `eos` / `fixed` 두 경우를 직접 비교합니다.
+- 실습 1의 `eos` / `fixed` 로그에서 예약과 실제 생성 길이를 함께 읽습니다. 종료 조건이 달라지면 처리한 token 수도 달라지므로 전체 실행 시간에는 두 효과가 섞입니다.
 
 > 일반 원칙: **벤치마크 설정이 시스템의 적응 메커니즘을 건드리지 않는지** 의심하세요. 캐시(warm/cold), 적응형 batch, 낙관적 예약, JIT 컴파일 모두 해당됩니다.
 
@@ -255,7 +262,7 @@ running 예약    = 10 × (1000 − 200) × 0.5     =  4,000
 rem_total       = 27,000 − 4,000              = 23,000
 
 대기 요청: 입력 100, max_new 1000 → 비용 1,100
-→ 23,000 / 1,100 ≈ 20개 (rem_input_tokens 16384: 20 × 100 = 2,000 OK, chunk 4096: 각 100 OK)
+→ 23,000 / 1,100 ≈ 20개 (rem_input_tokens 16384: 20 × 100 = 2,000 OK, chunk 4096: 전체 2,000 OK)
 ```
 
 | 조건 | running 예약 | 승인 수 |
@@ -439,10 +446,10 @@ interval 1 + chunk 4K:  [P 4K][D][P 4K][D][P 4K][D][P 4K][D] …     ← "기대
 
 가해자 TTFT가 늘어나는 두 가지 이유:
 
-1. 조각 사이에 decode iteration이 끼어든다 (mixed/interval일 때)
-2. 뒤쪽 조각일수록 attention이 **앞 조각들의 KV 전부**를 읽어야 한다 (조각 k의 attention 비용 ∝ C × k·C)
+1. Interval을 쓰면 prefill 사이에 decode round가 들어갑니다. Mixed batch에서는 prefill 조각과 decode가 같은 forward 안에서 자원을 나눠 씁니다.
+2. 청크가 작아지면 forward 호출이 늘고 커널의 효율이 달라집니다. 뒤쪽 조각에서는 새 query가 앞 조각의 KV를 봅니다. 청크 없이 실행해도 같은 causal attention 관계는 계산합니다.
 
-이 trade-off는 근본적으로 **TTFT(가해자) vs ITL(피해자)** 의 교환입니다. 실습 2에서 다섯 설정을 직접 재서, "chunk만 줄여서는 안 줄어든다"는 것을 확인합니다.
+이 trade-off는 근본적으로 **TTFT(가해자) vs ITL(피해자)** 의 교환입니다. 실습 2에서는 chunk 크기를 고정한 두 설정을 비교합니다. 그래프에서 두 종류의 요청이 실제로 겹친 구간을 먼저 찾고, 그 구간의 멈춤과 TTFT를 비교하세요.
 
 ### 4.7 기본값은 어떻게 정해지나 (📖)
 
@@ -511,9 +518,9 @@ batch N+1의 입력은 batch N이 만든 token입니다. 그런데 batch N+1을 
 
 | 플래그 | 늘리면 | 줄이면 | 언제 만지나 |
 |---|---|---|---|
-| `--mem-fraction-static` | KV pool↑ → 동시 처리↑ | OOM 위험↓ | 시작 시 OOM이면 줄임 |
+| `--mem-fraction-static` | KV pool↑, activation·graph 여유↓ | GPU 실행 버퍼 여유↑, KV pool↓ | 시작 시 OOM이면 줄임 |
 | `--max-total-tokens` | (디버깅용) pool 직접 지정 | | 실험에서 메모리 압박을 일부러 만들 때 |
-| `--max-running-requests` | 동시 decode 수 상한↑ | tail latency 안정 | `token usage`가 낮은데 `#queue-req`가 쌓일 때 확인 |
+| `--max-running-requests` | 동시 decode 수 상한↑ | decode batch 상한↓, 큐 대기 가능성↑ | `token usage`가 낮은데 `#queue-req`가 쌓일 때 확인 |
 | `--chunked-prefill-size` | 긴 prefill 효율↑, 가해자 TTFT↓ | activation 메모리↓, (mixed/interval과 함께일 때) 피해자 ITL↓ | 긴 입력이 섞이는 서비스, 시작 시 OOM |
 | `--enable-mixed-chunk` | | | ITL 스파이크가 문제일 때 (조각과 decode를 섞음) |
 | `--prefill-decode-interval` | prefill 뒤 decode를 N번 보장 | | ITL 스파이크, prefill이 연달아 decode를 굶길 때 |
@@ -561,7 +568,7 @@ TTFT만 나쁨         → 대기열(#queue-req) 또는 긴 입력. prefix cache
 
 ### 자기 점검 문제
 
-1. pool 50,000, 빈 슬롯 30,000, evictable 5,000. running 30개가 각각 `max_new=2048`에 이미 1000 생성, ratio 0.2. 대기 요청은 입력 500, `max_new=2048`. 이번 iteration 승인 수는? (`max_prefill_tokens=16384`도 고려)
+1. pool 50,000, 빈 슬롯 30,000, evictable 5,000. running 30개가 각각 `max_new=2048`에 이미 1000 생성, ratio 0.2. 대기 요청은 입력 500, `max_new=2048`. chunked prefill을 끄고 요청 슬롯은 충분하다고 가정합니다. 이번 iteration 승인 수는? (`max_prefill_tokens=16384`도 고려)
 2. 위에서 모든 요청이 `ignore_eos=True`라면?
 3. 대기열 맨 앞에 입력 20,000짜리 요청이 있고 그 뒤에 입력 100짜리가 50개 있다. chunked prefill이 없다면 어떤 일이 생기나? 있다면?
 4. retraction 정렬 키가 (생성 수 많은 것부터 쫓아냄)이라면 무엇이 나빠질까?
@@ -573,7 +580,7 @@ TTFT만 나쁨         → 대기열(#queue-req) 또는 긴 입력. prefix cache
 <summary>답</summary>
 
 1. running 예약 = 30 × (2048 − 1000) × 0.2 = 6,288. rem_total = 30,000 + 5,000 − 6,288 = 28,712. 비용 = 500 + 2048 = 2,548 → 메모리 기준 11개 (11 × 2,548 = 28,028). 계산량: 11 × 500 = 5,500 ≤ 16,384 OK → 약 11개.
-2. running 예약 = 30 × 1048 × 1.0 = 31,440 > 35,000 − … → rem_total = 3,560 → 1개 (2,548). 낙관 예약이 없으면 거의 못 받는다.
+2. running 예약 = 30 × 1048 × 1.0 = 31,440 → rem_total = 3,560 → 1개 (2,548). 낙관 예약이 없으면 거의 못 받는다.
 3. chunk 없음: 대기열 첫 요청은 `can_run_list`가 비어 있을 때 계산량 예산을 넘어도 받아들여지므로 20,000 token prefill 한 번이 iteration을 통째로 점유 → 그동안 모든 decode 멈춤, 작은 요청 50개도 대기. chunk 4096: 20,000이 5조각으로 연달아 돌고 조각마다 chunk 예산을 다 쓰므로 작은 요청들은 마지막 조각(3,616 token) iteration에 남는 예산으로 일부 들어가거나 그 뒤에 들어감. decode는 mixed/interval이 없으면 여전히 전체 시간 동안 멈춤.
 4. 거의 다 끝나 가는 요청을 쫓아내 가장 많은 진행분을 버림 → 재계산 비용 최대, 그 요청 사용자의 E2E 최악.
 5. decode token이 매 iteration 1K prefill 조각과 같은 forward에 섞여 step 하나가 길어짐 → 평소 ITL(p50)이 길어짐. 대신 '멈춤'이 사라져 p99가 개선.

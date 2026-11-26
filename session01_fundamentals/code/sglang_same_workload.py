@@ -42,6 +42,8 @@ def main() -> None:
             flush_cache(args.url)  # HF에는 prefix cache가 없으니 공정하게 비우고 시작
             reqs = make_random_requests(b, args.in_len, args.out_len, seed=b * 100 + rep)
             res, wall = run_requests(reqs, concurrency=b, url=args.url)
+            if len(res) != b or any(r.get("error") or r.get("completion_tokens") != args.out_len for r in res):
+                raise SystemExit(f"batch={b}, 반복={rep + 1}: 모든 요청이 지정한 길이로 완료되어야 비교할 수 있습니다. 서버 로그를 확인하세요.")
             walls.append(wall)
             ttfts += [r["ttft"] for r in res if r.get("ttft")]
             itls += [x for r in res for x in r.get("itls", [])]

@@ -18,40 +18,34 @@
 - `max_prefill_tokens = 16384`, `chunked_prefill_size = 4096`
 
 1. 메모리 예산 기준 승인 수는?
-2. `rem_input_tokens` 기준 승인 수는? 어느 쪽이 먼저 막나요?
+2. `rem_input_tokens`와 `rem_chunk_tokens` 각각으로 몇 개까지 온전히 처리할 수 있나요? 어느 쪽이 먼저 막히나요?
 3. 같은 대기 요청들이 `ignore_eos=True`(running 요청들도 전부)였다면 승인 수는?
 
 ## Part B. 측정 (GPU)
 
-수업의 `interference.py`를 이용해 **chunk 크기 × 가해자 길이** 표를 채웁니다. 피해자는 16명 고정.
+수업의 16K 결과를 다시 쓰고, 8K 입력에서 `chunk1024`와 `chunk1024mx` 두 설정만 실행하세요. 수업에서 도착 시각이나 출력 길이를 조정했다면 같은 값을 이 실험에도 씁니다.
 
-| 가해자 입력 \ 설정 | nochunk | 4096 | 1024 | 4096 + mixed | 1024 + mixed | 1024 + interval 1 |
-|---|---|---|---|---|---|---|
-| 8000 | | | | | | |
-| 16000 | | | | | | |
+| 긴 요청의 입력 길이 | chunk 1024 | chunk 1024 + mixed |
+|---|---|---|
+| 8000 (과제) | | |
+| 16000 (수업) | | |
 
 각 칸에 `victim_itl_ms_p99` / `aggressor_ttft_ms_mean` 두 값을 적으세요.
 
 ```bash
-# 예: chunk 4096 + mixed, 가해자 8000 / 16000
-bash common/launch.sh c4096mx --enable-mixed-chunk
-python session04_scheduler/code/interference.py --aggressor-in 8000  --tag c4096mx_a8k  --out results/s04_hw.csv
-python session04_scheduler/code/interference.py --aggressor-in 16000 --tag c4096mx_a16k --out results/s04_hw.csv
-bash common/stop.sh
+RESULT_DIR="$PWD/results/s04_homework" AGGRESSOR_IN=8000 bash session04_scheduler/code/interference_sweep.sh
 ```
 
-> 예산 팁: 서버 하나 띄울 때마다 두 길이를 모두 돌리세요 (서버 시작이 가장 비싼 부분입니다). 총 6번 launch.
-> 수업에서 이미 돌린 16000 결과는 재사용해도 됩니다.
+실험은 서버 기동 두 번이면 됩니다. 다른 chunk 크기나 interval은 여유가 있을 때 추가하고, 비교를 확장할 때는 강사가 제공한 실행 데이터도 쓸 수 있습니다.
 
 ## Part C. 분석
 
 1. **그래프 1**: x = 가해자 TTFT, y = 피해자 p99 ITL. 설정마다 점 하나 (8K, 16K 각각 다른 색). 왼쪽 아래가 좋은 설정입니다.
    SLO(p99 ITL ≤ 100 ms) 선을 그리고, SLO를 만족하는 설정 중 가해자 TTFT가 가장 짧은 것을 고르세요.
+   입력 길이별로 고르고, 만족하는 설정이 없으면 그렇게 보고하세요. 최대 ITL도 같이 기록하면 p99에서 보이지 않는 드문 멈춤을 설명할 수 있습니다.
 2. **그래프 2**: 설정 하나를 골라 `plot_timeline.py`로 ITL 타임라인. 스파이크 하나를 확대해 "이 스파이크의 높이 ≈ chunk 하나의 prefill 시간"인지 확인하세요.
    (chunk 하나의 prefill 시간은 Session 1 과제의 TTFT vs 입력 길이 데이터로 추정 가능)
-3. 16K 가해자에서 `1024 + mixed`와 `1024 + interval 1`의 **가해자 TTFT가 nochunk보다 얼마나 늘었는지**, 그 이유를 두 가지 대세요.
-   (힌트: ① 조각 사이에 decode가 끼어든다 ② 뒤쪽 조각일수록 attention이 앞 조각들의 KV를 모두 읽는다)
-   그리고 chunk 크기만 바꾼 열(nochunk / 4096 / 1024)에서 피해자 p99 ITL이 거의 안 변했다면, 이론 §4.3과 연결해 설명하세요.
+3. 두 입력 길이에서 mixed를 켰을 때 TTFT와 기존 요청의 긴 멈춤이 각각 얼마나 바뀌었나요? 관찰한 값이 예측과 다르면 타임라인에서 요청이 겹친 구간부터 확인하세요.
 4. 팀장에게 추천할 설정과 근거 3문장.
 
 ## Part D. 코드 리딩 (GPU 불필요)

@@ -25,20 +25,20 @@ KEEP = [
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("jsonl", nargs="+")
-    p.add_argument("--tag", default=None, help="모든 행에 붙일 tag (기본: 파일 이름)")
+    p.add_argument("--tag", default=None, help="모든 행에 붙일 tag (기본: JSONL의 tag, 없으면 파일 이름)")
     p.add_argument("--out", default=None)
     args = p.parse_args()
 
     rows = []
     for path in args.jsonl:
-        tag = args.tag or os.path.splitext(os.path.basename(path))[0]
+        file_tag = os.path.splitext(os.path.basename(path))[0]
         with open(path) as f:
             for line in f:
                 line = line.strip()
                 if not line:
                     continue
                 d = json.loads(line)
-                row = {"tag": tag}
+                row = {"tag": args.tag or d.get("tag") or file_tag}
                 for k in KEEP:
                     v = d.get(k)
                     if k == "request_rate" and (v is None or v == float("inf") or v == "inf"):

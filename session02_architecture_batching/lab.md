@@ -5,7 +5,7 @@
 
 | # | 실습 | 시간 |
 |---|---|---|
-| 0 | Pod 준비 + 서버 시작 | 수업 시작 시 (발표 중) |
+| 0 | Pod 준비 + 서버 시작 | 실습 직전 |
 | 1 | 프로세스 구조와 스케줄러 스택 엿보기 | 8분 |
 | 2 | 요청 하나를 로그로 추적 | 7분 |
 | 3 | Continuous batching 타임라인 | 10분 |
@@ -16,7 +16,7 @@
 ## 0. 준비
 
 ```bash
-cd /workspace && git clone https://github.com/<your-id>/metacode_sglang_study.git && cd metacode_sglang_study
+cd /workspace && git clone --branch main https://github.com/mlleo/metacode_sglang_study.git && cd metacode_sglang_study
 bash common/setup_pod.sh
 bash common/launch.sh baseline
 ```
@@ -40,12 +40,12 @@ ps -eo pid,ppid,comm,args | grep -E "sglang" | grep -v grep
 **스케줄러가 지금 무엇을 하고 있는지 스택 보기** (`py-spy`는 SGLang 의존성으로 설치됩니다):
 
 ```bash
-SCHED_PID=$(pgrep -f "sglang::scheduler" | head -1)
-py-spy dump --pid $SCHED_PID | head -40
+SCHED_PID=$(pgrep -s "$(cat logs/server.pid)" -f 'sglang::scheduler' | head -1)
+py-spy dump --pid "$SCHED_PID" | head -40
 ```
 
 - 요청이 없을 때: 어떤 함수에서 대기하고 있나요? (`event_loop_overlap` → 요청 수신 함수)
-- 다른 터미널에서 `python common/loadgen.py --num 32 --concurrency 16 --output-len 256`을 돌리는 동안 다시 dump하면?
+- 다른 터미널에서 `python3 common/loadgen.py --num 32 --concurrency 16 --output-len 256`을 돌리는 동안 다시 dump하면?
   `run_batch`, `forward`, `process_batch_result` 같은 이름이 보이면 성공입니다.
 
 > `py-spy`가 `Permission denied`면 컨테이너에 ptrace 권한이 없는 것입니다. 건너뛰고 [code_map.md](../docs/code_map.md)의 표로 대신하세요.
@@ -55,8 +55,8 @@ py-spy dump --pid $SCHED_PID | head -40
 ## 2. 요청 하나를 로그로 추적 (7분)
 
 ```bash
-python common/client.py --flush
-python common/client.py --input-len 2000 --max-new-tokens 200
+python3 common/client.py --flush
+python3 common/client.py --input-len 2000 --max-new-tokens 200
 ```
 
 로그 터미널에서 방금 요청이 만든 줄을 찾으세요.
@@ -77,7 +77,7 @@ python common/client.py --input-len 2000 --max-new-tokens 200
 ## 3. Continuous batching 타임라인 (10분)
 
 ```bash
-python session02_architecture_batching/code/staggered.py \
+python3 session02_architecture_batching/code/staggered.py \
   --out results/s02_staggered.json --plot figures/s02_timeline.png
 ```
 
@@ -93,8 +93,8 @@ python session02_architecture_batching/code/staggered.py \
 ## 4. 동시성 sweep — latency-throughput 곡선 ⭐ (20분)
 
 ```bash
-bash session02_architecture_batching/code/sweep_concurrency.sh base "1 2 4 8 16 32 64 128" 512 256
-python session02_architecture_batching/code/bench_to_csv.py results/s02_base.jsonl --tag base
+bash session02_architecture_batching/code/sweep_concurrency.sh base "1 8 32 64 128" 512 256
+python3 session02_architecture_batching/code/bench_to_csv.py results/s02_base.jsonl --tag base
 ```
 
 > 약 8–10분 걸립니다. 기다리는 동안 로그 터미널에서 `#running-req`와 `token usage`가 동시성에 따라 어떻게 변하는지 보세요.
@@ -107,6 +107,7 @@ python session02_architecture_batching/code/bench_to_csv.py results/s02_base.jso
 | 1 | | | | | |
 | 8 | | | | | |
 | 32 | | | | | |
+| 64 | | | | | |
 | 128 | | | | | |
 
 해석 질문:
@@ -114,7 +115,7 @@ python session02_architecture_batching/code/bench_to_csv.py results/s02_base.jso
 1. 동시성 1 → 32에서 throughput은 몇 배, median ITL은 몇 배? Session 1의 "memory-bound 공짜 구간"과 같은 현상인가요?
 2. throughput 증가가 둔해지는 지점은 어디인가요? 그 지점에서 `token usage`는 몇이었나요?
 3. p99 TTFT가 median TTFT보다 훨씬 큰 지점이 있나요? 그 요청들은 무엇을 기다렸을까요?
-4. **(중요)** 동시성 4 이하에서 decode batch 크기(`#running-req`)는 정확히 동시성과 같나요? 아니라면 왜일까요?
+4. **(중요)** 동시성 1에서 decode batch 크기(`#running-req`)는 정확히 동시성과 같나요? 아니라면 왜일까요?
 
 ---
 
@@ -125,11 +126,11 @@ python session02_architecture_batching/code/bench_to_csv.py results/s02_base.jso
 
 ```bash
 bash session02_architecture_batching/code/sweep_rate.sh rate "4 8 12 16 20 24" 512 256 200
-python session02_architecture_batching/code/bench_to_csv.py results/s02_rate.jsonl --tag rate
+python3 session02_architecture_batching/code/bench_to_csv.py results/s02_rate.jsonl --tag rate
 ```
 
-- 도착률이 용량을 넘는 순간 median TTFT는 어떻게 되나요? (선형으로 늘지 않고 **폭발**해야 합니다)
-- `Peak concurrent requests`는 도착률에 따라 어떻게 변하나요? Little's law (L = λW)로 맞는지 확인해 보세요.
+- 도착률을 높일수록 실제 완료율은 계속 따라가나요? median TTFT가 크게 변하지 않으면 p95 ITL·E2E와 동시 실행 수에서 부담이 나타났는지 보세요. 짧은 sweep에서는 과부하에서 대기열이 얼마나 오래 커지는지 판단하기 어렵습니다.
+- `Peak concurrent requests`는 도착률에 따라 어떻게 변하나요? 안정 상태의 평균 동시성은 Little's law로 확인하고, 순식간의 최고값과 구분하세요.
 - closed-loop 동시성 64와 open-loop 용량 근처의 결과를 비교하면, 같은 throughput에서 TTFT가 같나요?
 
 ---
@@ -138,7 +139,7 @@ python session02_architecture_batching/code/bench_to_csv.py results/s02_rate.jso
 
 ```bash
 bash common/stop.sh
-python common/logparse.py logs/server_baseline.log > results/s02_log_summary.txt
+python3 common/logparse.py logs/server_baseline.log > results/s02_log_summary.txt
 tar czf s02_$(date +%m%d).tgz results logs figures
 ```
 
@@ -147,11 +148,11 @@ tar czf s02_$(date +%m%d).tgz results logs figures
 로컬에서 그래프:
 
 ```bash
-python common/plot.py results/s02_base.csv --x max_concurrency \
+python3 common/plot.py results/s02_base.csv --x max_concurrency \
   --y output_throughput,p95_ttft_ms,median_itl_ms --logx --out figures/s02_concurrency.png
-python common/plot.py results/s02_base.csv --x output_throughput --y p95_ttft_ms \
+python3 common/plot.py results/s02_base.csv --x output_throughput --y p95_ttft_ms \
   --annotate max_concurrency --out figures/s02_curve.png
-python common/plot.py results/s02_rate.csv --x request_rate --y median_ttft_ms,output_throughput \
+python3 common/plot.py results/s02_rate.csv --x request_rate --y median_ttft_ms,output_throughput \
   --out figures/s02_rate.png
 ```
 

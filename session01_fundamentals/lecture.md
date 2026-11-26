@@ -6,11 +6,19 @@
 
 이 문서는 **수업 + 복습용 완결 자료**입니다. 수업 시간에 다 다루지 않습니다.
 
-- ★ 표시 절: 수업에서 다루는 핵심 (강사 추천 40–50분 구성)
+- ★ 표시 절: 수업에서 다루는 핵심 (40분 수업에 쓸 절은 아래에 따로 표시했습니다)
 - 📖 표시 절: 복습·심화. 수업 후 혼자 읽고 자기 점검 문제로 확인하세요
 - 숫자 예제는 모두 **Qwen3-1.7B + RTX 4090** 기준입니다. 실습에서 직접 잰 값과 비교하세요
 
-**수업용 추천 구성:** §1 → §3 → §4 → §5(§5.1–5.4) → §7 → §8 (나머지는 📖)
+**수업 40분**
+
+- 5분 · §9의 첫 요청을 강사가 보냅니다. 스트림에서 첫 글자가 오기 전과 그 뒤를 눈으로 구분합니다. 서버 준비가 늦으면 미리 저장한 응답을 봅니다.
+- 10분 · §1.1 그림에서 token ID, logits, 다음 token만 따라가고 §3 그림에 첫 번째와 두 번째 출력 위치를 표시합니다.
+- 10분 · §4.1–4.2에서 KV를 저장하는 이유와 112 KiB/token을 계산합니다.
+- 10분 · §5.3의 3.4 ms를 구한 뒤 §7.1–7.2에서 이 값과 실제 스트리밍 지연이 왜 다른지 짚습니다.
+- 5분 · 혼자서 프롬프트 512 token, 출력 3 token의 forward 순서를 그립니다. 답은 prefill 한 번과 decode 두 번입니다.
+
+Qwen 레이어의 상세 구조, roofline 전체 유도식, sampling 옵션은 복습할 때 읽습니다.
 
 ## 목차
 
@@ -119,17 +127,17 @@ BF16(2 bytes)이면 weight는 **약 3.44 GB**. 이 숫자가 이 스터디 내�
 ┌──────────── PREFILL ────────────┐┌───────────── DECODE ─────────────┐
  프롬프트 N개 token을 한 번에 forward   token 1개 → forward → token 1개
  → 모든 위치의 K, V를 cache에 저장      → 새 K, V 1개분만 cache에 추가
- → 마지막 위치 logits로 첫 token       … 출력 길이만큼 반복
+ → 마지막 위치 logits로 첫 token       … 첫 token 이후 남은 출력만큼 반복
 └─────────────────────────────────┘└──────────────────────────────────┘
-          ⇒ TTFT를 결정                       ⇒ ITL / TPOT를 결정
+          ⇒ TTFT의 주요 요소                  ⇒ ITL / TPOT의 주요 요소
 ```
 
 | | Prefill | Decode |
 |---|---|---|
 | 한 forward에서 처리하는 token | N (수백~수만) | 요청당 1 |
-| forward 횟수 | 1 | 출력 길이만큼 |
+| forward 횟수 (청크를 쓰지 않을 때) | 1, 여기서 첫 출력 생성 | 출력이 M개라면 M − 1 |
 | 행렬 연산 모양 | [N × 2048] · [2048 × 6144] — **GEMM** | [1 × 2048] · [2048 × 6144] — 사실상 **GEMV** |
-| 병목 | **연산량** (compute-bound) | **메모리 읽기** (memory-bound) |
+| 흔한 병목 | 긴 입력의 **연산량** | 작은 batch의 **메모리 읽기**와 launch overhead |
 | 대응 지표 | TTFT | ITL, TPOT |
 | GPU 활용률 | 높음 | 낮음 (batch가 작을 때) |
 
@@ -190,7 +198,7 @@ KV bytes / token = 2 (K와 V) × num_layers × num_kv_heads × head_dim × dtype
 | 16 요청 × 2K token | 3.5 GiB |
 | 64 요청 × 2K token | **14 GiB** ← weight(3.2 GiB)의 4배 |
 
-`python common/kvcalc.py Qwen/Qwen3-1.7B --params-b 1.72`로 확인할 수 있습니다.
+`python3 common/kvcalc.py Qwen/Qwen3-1.7B --params-b 1.72`로 확인할 수 있습니다.
 
 ### 4.3 MHA → GQA → MQA → MLA: KV를 줄이는 구조들 (📖)
 
@@ -240,6 +248,8 @@ time ≈ max( FLOPs / peak_FLOPS ,  bytes_moved / mem_bandwidth )
 | L4 | ≈ 121 TFLOPS | ≈ 0.3 TB/s | ≈ 400 FLOP/byte |
 | H100 SXM | ≈ 990 TFLOPS | ≈ 3.35 TB/s | ≈ 295 FLOP/byte |
 
+표의 연산량은 희소성 가속을 제외한 기준값입니다. [RTX 4090 사양](https://images.nvidia.com/aem-dam/Solutions/geforce/ada/nvidia-ada-gpu-architecture.pdf), [H100 사양](https://www.nvidia.com/en-us/data-center/h100/)
+
 ```text
 achievable
  FLOPS  │                   ____________________  ← peak compute (165 TFLOPS)
@@ -267,7 +277,7 @@ decode step 하나에서 linear layer들은
 AI ≈ (2·P·B) / (2·P) = B
 ```
 
-**B = 1이면 AI = 1.** ridge 165에 한참 못 미칩니다. batch=1 decode는 "weight를 한 번 훑어 읽는 시간"이 전부입니다.
+**B = 1이면 AI = 1.** ridge 165에 한참 못 미칩니다. 이 근사에서는 batch=1 decode 시간이 weight를 한 번 읽는 시간에 가깝습니다. 실제 step에는 KV 읽기, sampling, launch 비용도 들어갑니다.
 
 ### 5.3 손으로 계산하는 decode 하한 (화이트보드에서 같이)
 
@@ -357,7 +367,7 @@ HF eager 구현이 이론 하한보다 몇 배 느린 주된 이유가 이것이
 
 | 방법 | 하는 일 | 성질 |
 |---|---|---|
-| greedy | `argmax(logits)` | 결정적. **이 스터디의 모든 측정은 temperature=0 (greedy)** |
+| greedy | `argmax(logits)` | 결정적. 대부분의 실습은 `temperature=0`을 사용합니다. Session 4의 EOS 실험은 sampling을 사용합니다. |
 | temperature T | `softmax(logits / T)`에서 뽑기 | T↓ 날카로움, T↑ 다양성 |
 | top-k | 상위 k개만 남기고 뽑기 | |
 | top-p (nucleus) | 누적 확률 p까지의 최소 집합에서 뽑기 | 정렬이 필요해 보이지만… |
@@ -402,7 +412,7 @@ t0 요청 전송      t1 첫 token 도착   t2 둘째 token      ...     tₙ �
 ### 7.2 TPOT와 ITL의 차이
 
 - **TPOT = 평균**, **ITL = 분포**입니다.
-- 출력 100 token 중 99개는 10 ms 간격이고 1개가 1,000 ms라면: TPOT ≈ 20 ms(괜찮아 보임), ITL p99 = 1,000 ms(사용자는 1초 멈춤을 봄).
+- 출력 101 token의 간격 100개 중 99개가 10 ms이고 마지막 하나가 1,000 ms라면 TPOT는 19.9 ms입니다. 실습의 선형 보간 방식으로 구한 p99도 19.9 ms입니다. 사용자가 겪은 1초 멈춤은 최대 ITL에서 보입니다.
 - 이런 멈춤은 다른 사용자의 긴 prefill이 끼어들 때 생깁니다. Session 4에서 직접 만듭니다.
 
 ### 7.3 평균만 보지 않는다
@@ -424,13 +434,13 @@ t0 요청 전송      t1 첫 token 도착   t2 둘째 token      ...     tₙ �
 
 - 우리 `common/client.py`는 **클라이언트에서** 스트림 청크 도착 시각으로 잽니다 → 네트워크·HTTP·detokenize 포함.
 - 서버 로그와 `/metrics`(Session 6)는 **서버 내부 시각**입니다.
-- 둘이 다르면 그 차이가 서버 밖의 비용입니다. 리포트에는 "어디서 잰 값인지"를 반드시 적습니다.
+- 두 값의 차이를 해석하기 전에 같은 요청들을 집계했는지, 시작과 끝을 어디서 찍었는지 확인합니다. 여러 token이 한 청크로 오면 클라이언트가 본 간격과 개별 token 생성 간격도 달라집니다.
 
 ---
 
 ## 8. ★ 왜 `model.generate()`로는 서빙이 안 되는가
 
-`generate()`는 **"이미 모인 batch 하나"를 끝까지 돌리는 함수**입니다. 서비스에는 다음이 필요합니다.
+`generate()`에 이미 모인 입력을 넘겨 한 번 호출하면 그 batch를 끝까지 처리합니다. 서비스에는 다음이 필요합니다.
 
 | `generate()`의 한계 | 서빙 엔진의 답 | 회차 |
 |---|---|---|
@@ -465,11 +475,11 @@ Session 2에서 이 문제를 iteration 단위 스케줄링으로 어떻게 푸�
 - 두 부분: **Frontend language**(여러 번의 생성 호출을 프로그램으로 쓰는 DSL, `sglang.lang`)와 **Runtime(SRT)**. 이 스터디는 **SRT(서버)만** 다룹니다.
 - 비슷한 엔진: vLLM, TensorRT-LLM, LMDeploy, llama.cpp. 해결하려는 문제(§8 표)는 모두 같고, **선택(trade-off)이 다릅니다.** SGLang을 끝까지 파 보면 다른 엔진도 같은 질문으로 읽을 수 있습니다.
 - **버전 고정:** SGLang은 몇 주마다 릴리스가 나오고 플래그 이름과 파일 구조가 바뀝니다. 이 스터디는 **v0.5.23**(2026-10-28)에 고정합니다. 블로그나 예전 자료의 명령이 안 맞으면 버전부터 의심하세요.
-  - 예: `python -m sglang.bench_serving` → v0.5.23에서는 `python -m sglang.benchmark.serving` (구 경로는 deprecated 경고와 함께 동작)
+  - 예: `python3 -m sglang.bench_serving` → v0.5.23에서는 `python3 -m sglang.benchmark.serving` (구 경로는 deprecated 경고와 함께 동작)
   - 예: `--disable-cuda-graph` → `--cuda-graph-backend-decode disabled` 등으로 세분화
 - 처음 실행하는 명령은 두 가지 중 아무거나:
   ```bash
-  python -m sglang.launch_server --model-path Qwen/Qwen3-1.7B --port 30000   # 이 스터디의 스크립트가 쓰는 형태
+  python3 -m sglang.launch_server --model-path Qwen/Qwen3-1.7B --port 30000   # 이 스터디의 스크립트가 쓰는 형태
   sglang serve Qwen/Qwen3-1.7B --port 30000                                  # 공식 문서의 새 CLI
   ```
 
@@ -504,7 +514,7 @@ Session 2에서 이 문제를 iteration 단위 스케줄링으로 어떻게 푸�
 2. prefill(프롬프트 전체, compute-bound, TTFT)과 decode(token 하나씩, memory-bound, ITL)는 다른 종류의 일이다.
 3. KV cache는 O(S²) 재계산을 O(S) 저장으로 바꾼다. Qwen3-1.7B는 112 KiB/token.
 4. batch=1 decode의 하한 ≈ weight bytes / 대역폭 ≈ 3.4 ms (4090).
-5. decode의 AI ≈ batch. batch를 키우면 ridge(≈165)까지는 throughput이 거의 공짜로 는다.
+5. weight 읽기만 센 근사에서는 decode의 AI ≈ batch입니다. 실제로는 batch와 context가 커질수록 KV 읽기도 늘어납니다.
 6. 하지만 KV 읽기는 요청마다 따로라 batch로 상쇄되지 않는다. 긴 context에서는 attention이 지배.
 7. 실제 시간에는 GPU가 CPU를 기다리는 overhead가 끼어 있다.
 8. TTFT / ITL(분포) / TPOT(평균) / E2E / throughput, 그리고 p50/p95/p99.

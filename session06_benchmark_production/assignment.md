@@ -14,5 +14,5 @@ Session 6 직후 할 일:
 `submissions/session06/<github-id>/README.md`에 아래 세 가지만 붙여 주세요 (발표 없음).
 
 - `repeat_stats.py` 출력 + "내 이전 과제의 주장 중 이 노이즈 수준에서 다시 봐야 할 것" 1개
-- `trace_summary.py` 출력 3개(c1, c32, c1_nograph) + Perfetto 스크린샷 1장 + 관찰 3줄
-- 내 결과 중 SLO를 지키는 가장 싼 $/1M tokens와 그 설정
+- `trace_summary.py` 출력 3개(c1, c32, c1_nograph)와 Perfetto 스크린샷 1장, 관찰 3줄. c32와 c1_nograph는 수업에 제공된 trace를 사용해도 됩니다. 각 trace의 GPU를 적어 주세요.
+- 내 결과 중 SLO를 지키는 가장 싼 $/1M tokens와 그 설정. 모두 실패했다면 어떤 지표가 기준을 넘었는지 적습니다.

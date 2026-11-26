@@ -19,8 +19,8 @@ import argparse
 import json
 import os
 import sys
-import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "common"))
 from client import DEFAULT_URL, flush_cache, generate, random_ids  # noqa: E402
@@ -43,27 +43,34 @@ def main() -> None:
     flush_cache(args.url)
     generate(input_ids=random_ids(64, seed=0), max_new_tokens=4, url=args.url)  # warm-up
     t0 = time.perf_counter()
-    victims, aggressors = {}, {}
-
     def victim(i):
-        r = generate(input_ids=random_ids(args.victim_in, seed=500 + i), max_new_tokens=args.victim_out, url=args.url)
-        victims[i] = r
+        return generate(input_ids=random_ids(args.victim_in, seed=500 + i), max_new_tokens=args.victim_out, url=args.url)
 
     def aggressor(j, at):
         time.sleep(max(0.0, at - (time.perf_counter() - t0)))
         r = generate(input_ids=random_ids(args.aggressor_in, seed=900 + j), max_new_tokens=8, url=args.url)
-        aggressors[j] = {"arrive_s": r["t_start"] - t0, "ttft_ms": r["ttft"] * 1000}
+        return {"arrive_s": r["t_start"] - t0, "ttft_ms": r["ttft"] * 1000}
 
-    threads = [threading.Thread(target=victim, args=(i,)) for i in range(args.victims)]
-    threads += [threading.Thread(target=aggressor, args=(j, float(a)))
-                for j, a in enumerate(args.aggressor_at.split(","))]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    arrivals = [float(a) for a in args.aggressor_at.split(",")]
+    with ThreadPoolExecutor(max_workers=args.victims + len(arrivals)) as workers:
+        victim_tasks = [workers.submit(victim, i) for i in range(args.victims)]
+        aggressor_tasks = [workers.submit(aggressor, i, at) for i, at in enumerate(arrivals)]
+        victims = {i: task.result() for i, task in enumerate(victim_tasks)}
+        aggressors = {i: task.result() for i, task in enumerate(aggressor_tasks)}
 
     all_itl = [x * 1000 for r in victims.values() for x in r["itls"]]
     worst = [max(r["itls"]) * 1000 for r in victims.values() if r["itls"]]
+    if not all_itl:
+        raise SystemExit("기존 요청의 token 간격을 측정하지 못했습니다.")
+    for aggressor_data in aggressors.values():
+        arrival = t0 + aggressor_data["arrive_s"]
+        streaming = sum(
+            bool(r["token_times"]) and r["token_times"][0] <= arrival < r["token_times"][-1]
+            for r in victims.values()
+        )
+        print(f"긴 요청 도착 {aggressor_data['arrive_s']:.2f}s: 스트리밍 중 {streaming}/{args.victims}")
+        if not streaming:
+            raise SystemExit("두 요청이 겹치지 않았습니다. --aggressor-at을 앞당기거나 --victim-out을 늘려 두 설정을 다시 비교하세요.")
     row = {
         "tag": args.tag,
         "victim_itl_ms_p50": percentile(all_itl, 50),

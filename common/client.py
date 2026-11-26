@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-DEFAULT_URL = os.environ.get("SGLANG_URL", "http://127.0.0.1:30000")
+DEFAULT_URL = os.environ.get("SGLANG_URL", f"http://127.0.0.1:{os.environ.get('PORT', '30000')}")
 
 # Qwen3 vocab은 151,936개. 특수 토큰(151643 이상)을 피하고, 너무 작은 id(바이트 토큰)도 피한다.
 _SAFE_ID_LOW, _SAFE_ID_HIGH = 1_000, 100_000

@@ -15,6 +15,8 @@ OUT="${RESULT_DIR}/s03_policy.jsonl"
 
 for POLICY in lpm fcfs; do
   bash common/launch.sh "policy_${POLICY}" --schedule-policy "${POLICY}" --max-total-tokens "${POOL}"
+  trap 'bash common/stop.sh > /dev/null' EXIT
+  LOG="${LOG_DIR}/bench_policy_${POLICY}.log"
   # max-concurrency를 96으로 둔다: 대기열이 128을 넘으면 LPM은 비용 때문에 스스로 FCFS로 바뀐다
   #   (schedule_policy.py: WAITING_QUEUE_PREFIX_MATCH_MAX = 128)
   python3 -m sglang.benchmark.serving \
@@ -22,9 +24,14 @@ for POLICY in lpm fcfs; do
     --dataset-name generated-shared-prefix \
     --gsp-num-groups 16 --gsp-prompts-per-group 16 \
     --gsp-system-prompt-len 2048 --gsp-question-len 128 --gsp-output-len 64 \
-    --max-concurrency 96 --flush-cache --seed 1 \
-    --output-file "${OUT}" 2>&1 | grep -E "Request throughput|Output token throughput|Median TTFT|P99 TTFT" || true
+    --max-concurrency 96 --flush-cache --seed 1 --tag "${POLICY}" \
+    --output-file "${OUT}" > "$LOG" 2>&1 || {
+      tail -n 40 "$LOG" >&2
+      exit 1
+    }
+  grep -E "Successful requests|Request throughput|Output token throughput|Median TTFT|P99 TTFT" "$LOG"
   bash common/stop.sh > /dev/null
+  trap - EXIT
   echo "--- ${POLICY} 로그 요약 ---"
   python3 common/logparse.py "${LOG_DIR}/server_policy_${POLICY}.log" | grep -E "cache_hit_rate|sum_new_token|sum_cached|queue_req_max|token_usage_max"
 done

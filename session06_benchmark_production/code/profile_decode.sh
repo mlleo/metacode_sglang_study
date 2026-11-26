@@ -12,22 +12,28 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 source common/env.sh
 TAG="${1:?tag}"; CONC="${2:?concurrency}"; shift 2
-OUT_DIR="${STUDY_ROOT}/profiles/${TAG}"
-mkdir -p "$OUT_DIR"
+PROFILE_ROOT="${STUDY_ROOT}/profiles/${TAG}"
+mkdir -p "$PROFILE_ROOT"
+OUT_DIR=$(mktemp -d "${PROFILE_ROOT}/run.XXXXXX")
 
-bash common/launch.sh "prof_${TAG}" "$@"
+SGLANG_PROFILE_BY_STAGE_DECODE_MIN_BS="$CONC" bash common/launch.sh "prof_${TAG}" "$@"
+trap 'bash common/stop.sh > /dev/null' EXIT
 
-# 1) 배경 부하: decode가 길게 이어지도록 출력 2048
-python3 common/loadgen.py --num "$CONC" --concurrency "$CONC" --input-len 256 --output-len 2048 \
-  --warmup 0 --tag "prof_${TAG}" > /dev/null &
-LOAD_PID=$!
-sleep 4   # prefill이 끝나고 decode가 안정될 때까지 (출력 2048이라 batch=1에서도 약 10초 이어짐)
+# 부하를 보내기 전에 단계를 지정한다. capture는 decode batch 크기가 CONC에 닿은 뒤 시작한다.
+curl -fsS --max-time 30 -X POST "${SGLANG_URL}/start_profile" -H "Content-Type: application/json" \
+  -d "{\"output_dir\": \"${OUT_DIR}\", \"num_steps\": 10, \"activities\": [\"CPU\", \"GPU\"], \"profile_by_stage\": true}"
+python3 common/loadgen.py --num "$CONC" --concurrency "$CONC" --input-len 256 --output-len 128 \
+  --warmup 0 --tag "prof_${TAG}"
 
-# 2) decode step 10개 녹화 (끝나면 자동 정지)
-curl -s -X POST "${SGLANG_URL}/start_profile" -H "Content-Type: application/json" \
-  -d "{\"output_dir\": \"${OUT_DIR}\", \"num_steps\": 10, \"activities\": [\"CPU\", \"GPU\"]}"
-wait $LOAD_PID || true
-sleep 3
-bash common/stop.sh > /dev/null
+for i in $(seq 1 20); do
+  if find "$OUT_DIR" -type f -iname '*-decode.trace.json*' -size +0c -print -quit | grep -q .; then
+    break
+  fi
+  sleep 1
+done
+if ! find "$OUT_DIR" -type f -iname '*-decode.trace.json*' -size +0c -print -quit | grep -q .; then
+  echo "decode trace가 생성되지 않았습니다. logs/server_prof_${TAG}.log에서 실제 decode batch 크기와 profiler 상태를 확인하세요." >&2
+  exit 1
+fi
 echo "trace files:"
 ls -lh "$OUT_DIR"

@@ -6,8 +6,8 @@ Perfetto로 눈으로 보는 것이 먼저고, 이 스크립트는 숫자로 확
     python session06_benchmark_production/code/trace_summary.py profiles/c1 profiles/c32    # 비교
 
 출력
-    gpu_busy_pct : (GPU 커널이 하나라도 돌고 있던 시간) / (첫 커널 시작 ~ 마지막 커널 끝)
-                   → 낮으면 GPU가 CPU를 기다리고 있다 (launch overhead, 스케줄링)
+    gpu_busy_pct : GPU 이벤트(커널, 복사, 초기화)가 겹친 시간을 한 번만 센 비율
+                   관측 구간은 첫 GPU 이벤트 시작부터 가장 늦게 끝난 GPU 이벤트까지
     카테고리별 GPU 시간 비율 (gemm / attention / norm·act / sampling / memcpy / other)
 """
 
@@ -21,11 +21,12 @@ import os
 from collections import defaultdict
 
 CATEGORIES = [  # 위에서부터 먼저 걸리는 것으로 분류 (근사치입니다)
+    ("attention", ("flashattn", "flash_attn", "attention", "fmha", "batchdecode", "batchprefill",
+                   "singledecode", "singleprefill", "scaled_dot_product", "run_mha_fwd")),
     ("sampling", ("sampling", "argmax", "topk", "top_k", "softmax", "sample", "logits")),
-    ("attention", ("flashinfer", "attention", "fmha", "batchdecode", "batchprefill", "decode_attention", "extend_attention", "fwd_kernel")),
-    ("gemm", ("gemm", "cutlass", "cublas", "matmul", "xmma", "sm80_", "sm89_", "sm90_", "ampere_", "fp8")),
     ("norm/act/rope", ("rms", "norm", "silu", "act_and_mul", "rotary", "rope", "gelu")),
-    ("memcpy/index", ("memcpy", "memset", "copy", "index", "gather", "scatter", "cat")),
+    ("gemm", ("gemm", "cublas", "matmul", "xmma", "nvjet", "ampere_s168", "sm80_", "sm89_", "sm90_")),
+    ("memcpy/index", ("memcpy", "memset", "copy", "index", "gather", "scatter", "catkernel")),
 ]
 
 
@@ -41,19 +42,19 @@ def load(path: str) -> list:
     opener = gzip.open if path.endswith(".gz") else open
     with opener(path, "rt") as f:
         d = json.load(f)
-    return d.get("traceEvents", d if isinstance(d, list) else [])
+    return d if isinstance(d, list) else d.get("traceEvents", [])
 
 
 def summarize(paths: list) -> dict:
     kernels = []
     for p in paths:
         for e in load(p):
-            if e.get("ph") == "X" and e.get("cat") in ("kernel", "gpu_memcpy", "gpu_memset"):
-                kernels.append((e["ts"], e["ts"] + e.get("dur", 0), e.get("name", "?")))
+            if e.get("ph") == "X" and e.get("cat") in ("kernel", "gpu_memcpy", "gpu_memset") and e.get("dur", 0) > 0:
+                kernels.append((e["ts"], e["ts"] + e["dur"], e.get("name", "?")))
     if not kernels:
         return {}
     kernels.sort()
-    span = kernels[-1][1] - kernels[0][0]
+    span = max(end for _, end, _ in kernels) - kernels[0][0]
     busy, cur_s, cur_e = 0.0, *kernels[0][:2]
     for s, e, _ in kernels[1:]:
         if s > cur_e:
@@ -81,23 +82,27 @@ def summarize(paths: list) -> dict:
 def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("dirs", nargs="+", help="trace 파일이 든 폴더 또는 파일")
+    p.add_argument("--stage", choices=("decode", "extend"), help="파일 이름의 stage 접미사로 trace 선택")
     args = p.parse_args()
     for d in args.dirs:
         paths = [d] if os.path.isfile(d) else sorted(glob.glob(os.path.join(d, "**", "*.json*"), recursive=True))
+        if args.stage:
+            paths = [path for path in paths if f"-{args.stage}.trace.json" in os.path.basename(path).lower()]
         if not paths:
             print(f"[{d}] trace 파일 없음")
             continue
-        s = summarize(paths)
-        if not s:
-            print(f"[{d}] GPU 커널 이벤트를 찾지 못했습니다 (activities에 GPU가 포함됐나요?)")
-            continue
-        print(f"=== {d}  ({len(paths)} files)")
-        print(f"  kernels {s['num_kernels']:,}  span {s['span_ms']:.1f} ms  kernel time {s['total_kernel_ms']:.1f} ms  "
-              f"GPU busy {s['gpu_busy_pct']:.1f}%")
-        print("  GPU 시간 비율: " + "  ".join(f"{k} {v:.1f}%" for k, v in s["by_cat"].items()))
-        print("  상위 커널:")
-        for name, us in s["top"]:
-            print(f"    {us / 1000:8.2f} ms  [{category(name):>13}]  {name[:90]}")
+        for path in paths:
+            s = summarize([path])
+            if not s:
+                print(f"[{path}] GPU 이벤트가 없습니다. GPU activity가 포함됐는지 확인하세요.")
+                continue
+            print(f"=== {path}")
+            print(f"  events {s['num_kernels']:,}  span {s['span_ms']:.1f} ms  "
+                  f"summed GPU time {s['total_kernel_ms']:.1f} ms  GPU busy {s['gpu_busy_pct']:.1f}%")
+            print("  GPU 이벤트 시간 비율: " + "  ".join(f"{k} {v:.1f}%" for k, v in s["by_cat"].items()))
+            print("  시간이 긴 이벤트")
+            for name, us in s["top"]:
+                print(f"    {us / 1000:8.2f} ms  [{category(name):>13}]  {name[:90]}")
 
 
 if __name__ == "__main__":

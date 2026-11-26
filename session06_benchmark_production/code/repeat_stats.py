@@ -5,7 +5,8 @@
     python session06_benchmark_production/code/repeat_stats.py results/s06_rep.csv --group tag \
         --metrics output_tok_per_s,ttft_ms_p50,ttft_ms_p99,itl_ms_p99
 
-"A가 B보다 5% 빠르다"는 주장은 두 신뢰구간이 겹치지 않을 때만 하세요.
+이 출력은 설정별 변동을 보여 준다. 설정 두 개를 비교할 때는 평균 차이의
+신뢰구간을 구한다. 같은 workload끼리 짝지었다면 차이를 한 표본으로 쓴다.
 """
 
 from __future__ import annotations
@@ -17,7 +18,11 @@ import statistics
 from collections import defaultdict
 
 # 양측 95% t 값 (자유도 = n-1)
-T95 = {1: 12.71, 2: 4.30, 3: 3.18, 4: 2.78, 5: 2.57, 6: 2.45, 7: 2.36, 8: 2.31, 9: 2.26}
+T95 = {
+    1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571,
+    6: 2.447, 7: 2.365, 8: 2.306, 9: 2.262, 10: 2.228,
+    12: 2.179, 15: 2.131, 20: 2.086, 30: 2.042, 60: 2.000, 120: 1.980,
+}
 
 
 def main() -> None:
@@ -38,12 +43,16 @@ def main() -> None:
         cells = []
         for m in metrics:
             xs = [float(r[m]) for r in rows if r.get(m) not in (None, "")]
+            xs = [x for x in xs if math.isfinite(x)]
             if len(xs) < 2:
                 cells.append(f"{xs[0] if xs else float('nan'):>26.1f}")
                 continue
             mean, sd = statistics.mean(xs), statistics.stdev(xs)
-            half = T95.get(len(xs) - 1, 1.96) * sd / math.sqrt(len(xs))
-            cells.append(f"{mean:>12.1f} ± {half:>7.1f} ({half / mean * 100:4.1f}%)")
+            # 표에 없는 자유도는 바로 아래 값을 써서 구간을 조금 넓게 잡는다.
+            df = max(value for value in T95 if value <= len(xs) - 1)
+            half = T95[df] * sd / math.sqrt(len(xs))
+            relative = f" ({half / abs(mean) * 100:4.1f}%)" if mean else ""
+            cells.append(f"{mean:>12.1f} ± {half:>7.1f}{relative}")
         print(f"{g:<16}{len(rows):>3}  " + "  ".join(cells))
 
 

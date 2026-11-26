@@ -8,21 +8,21 @@
 - 거대한 서비스를 만드는 것이 아닙니다. **작고 명확한 시스템 질문 하나**를 고릅니다.
 - 좋은 질문: "공유 prefix 비율이 몇 %부터 radix cache가 throughput을 2배 이상 올리는가?"
 - 너무 큰 질문: "SGLang으로 production 챗봇을 만든다."
-- Session 6 §1의 **벤치마크 체크리스트**를 전부 만족해야 합니다.
+- 한 가지 기준 설정과 두세 개 비교점이면 충분합니다. Session 6 §1에 따라 결과를 다시 측정하고 불확실성을 함께 설명하세요. 수업 결과는 같은 환경과 workload일 때 기준선 후보로 쓸 수 있습니다.
 
 ## 주제 예시 (골라도 되고, 변형해도 되고, 새로 제안해도 됩니다)
 
 | | 주제 | 질문 | 출발점 |
 |---|---|---|---|
-| A | Radix Cache Explorer | 공유 비율 × 동시성 × 메모리 압박 3축에서 cache 이득이 사라지는 경계는? | S3 과제 Part B |
+| A | Radix Cache Explorer | 동시성과 메모리를 고정하면 공유 비율에 따라 cache 이득이 어떻게 변하나? | S3 과제 Part B |
 | B | Capacity Planner | 입력/출력 길이 분포(예: ShareGPT 실제 분포 `--dataset-name sharegpt`)에서 SLO 만족 capacity는? random-ids 결과와 얼마나 다른가? | S2 과제 |
 | C | Long-Prompt Interference | chunk 크기·mixed chunk·`max-prefill-tokens` 조합으로 TTFT/ITL Pareto front 그리기 | S4 과제 |
-| D | Optimization Ablation | Session 5 노트를 2축 이상으로 확장 (예: FP8 × batch × context) | S5 과제 |
+| D | Optimization Ablation | Session 5의 비교를 다른 입력 길이 하나에서 재현하면 효과가 유지되나? | S5 과제 |
 | E | Cost-aware Configuration | 4090 vs L4 vs (선택) A40/L40S에서 SLO 만족 $/1M tokens 비교. 비싼 GPU가 더 쌀 수 있는가? | S6 §4 |
 | F | Scheduler Hack | SGLang 소스를 고쳐(예: retraction 정렬 키, LPM 임계값 128, eviction 정책) 전후 비교. editable 설치 필요 | S4 코드 리딩 |
 | G | SGLang vs 다른 엔진 | 같은 GPU·모델·workload에서 vLLM과 비교. 순위가 아니라 **workload에 따라 왜 달라지는가** | S1–S5 전부 |
 | H | Speculative decoding 심화 | NGRAM vs EAGLE3(공개 draft가 있는 모델로) — accept length와 동시성의 관계 | S5 |
-| I | Structured output 비용 | JSON schema 제약 생성이 throughput/ITL에 주는 비용은? 스키마 복잡도에 따라? | S6 §5 |
+| I | Structured output 비용 | JSON schema 제약 생성이 throughput/ITL에 주는 비용은? 같은 입력에서 간단한 스키마와 복잡한 스키마의 차이는? | S6 §5 |
 
 > F, G는 설치·환경 문제로 시간이 더 듭니다. 강사와 먼저 상의하세요.
 
@@ -44,7 +44,7 @@ submissions/final/<github-id>/
 3. **Setup** — 환경(`env.txt`), 서버 인자 전체, workload, 부하 모델, 반복 횟수
 4. **Baseline** — 비교 기준
 5. **Change** — 바꾼 것 (하나의 축, 또는 명시적인 2축 grid)
-6. **Result** — 그래프 2–3개, 표 (평균 ± 95% CI)
+6. **Result** — 그래프 2–3개, 표 (비교 결과와 95% CI. 같은 seed로 짝지었다면 쌍별 차이의 구간)
 7. **Explanation** — 왜? 로그/metrics/profile 근거 하나 이상
 8. **Limitations & Next** — 말할 수 없는 것, GPU 30분이 더 있다면 할 실험
 

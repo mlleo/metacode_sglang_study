@@ -1,7 +1,6 @@
 # RunPod 실습 환경 & 예산 가이드
 
-RunPod은 **켜져 있는 시간만큼 과금**되는 클라우드 GPU입니다. 1인 예산은 **$20**입니다.
-6회 실습과 과제, 최종 프로젝트까지 하기에 충분하지만, Pod 하나를 밤새 켜 두면 하루 만에 절반이 사라질 수 있습니다.
+수강생은 자기 RunPod 계정에서 실습과 과제를 합니다. **$20**은 수업·과제·최종 프로젝트를 합친 계획 기준입니다. Deploy 화면의 시간당 가격과 본인 잔액을 먼저 확인하세요.
 
 > **3계명**
 > 1. GPU를 켜기 전에 무엇을 실행할지 정해 둔다 (스크립트는 로컬에서 mock 서버로 미리 디버깅).
@@ -19,7 +18,7 @@ RunPod은 **켜져 있는 시간만큼 과금**되는 클라우드 GPU입니다.
 | L4 | 24 GB | Ada (SM89) | 가능. 메모리 대역폭이 4090의 약 1/3 | "decode는 memory-bound" 비교 실험용으로 흥미로움 |
 | A40 / L40S | 48 GB | Ampere / Ada | 가능하지만 이 스터디엔 과함 | 큰 모델 실험을 하고 싶은 최종 프로젝트용 |
 
-- RTX 4090 Community Cloud는 공식 가격표 기준 시간당 약 **$0.34부터** 시작하지만, 시점·지역·재고에 따라 달라집니다. **Deploy 화면에 표시되는 가격이 기준**입니다.
+- 같은 RTX 4090이라도 지역과 재고에 따라 달라집니다. 실습 시간을 계산할 때는 **Deploy 화면에 표시되는 시간당 가격**을 씁니다. [Runpod GPU 가격표](https://www.runpod.io/gpu-models)
 - 결과 비교를 위해 **같은 반은 같은 GPU 종류**를 쓰는 것이 원칙입니다. 4090이 없으면 강사에게 알리고 다른 GPU를 쓴 뒤, README에 GPU 이름을 반드시 적으세요.
 
 ## 2. CUDA 필터 (중요!)
@@ -36,15 +35,15 @@ RunPod Community Cloud 호스트는 driver 버전이 제각각입니다.
 ### 방법 A (권장): Runpod PyTorch 템플릿 + 설치 스크립트
 
 1. Pods → **+ Deploy** → Community Cloud → RTX 4090 → **CUDA 13.0+ 필터**
-2. Template: **Runpod PyTorch** 계열 중 CUDA 13 버전 (Deploy 화면의 CUDA 드롭다운에서 선택)
+2. Template: **Runpod PyTorch** 계열 중 Python 3.11 이상, CUDA 13을 지원하는 이미지. **Additional filters → CUDA Versions**에서 호스트 조건을 따로 지정합니다. [Runpod 배포 문서](https://docs.runpod.io/pods/manage-pods#deploy-a-pod)
 3. **Container Disk 40 GB 이상** (PyTorch 2.14 + SGLang 의존성 + 모델 weight)
 4. Volume Disk: 0 GB로 둬도 됩니다 (매번 Terminate할 것이므로). 수업 사이에 Stop으로 이어 쓸 계획이면 20 GB 정도.
-5. Deploy → `Running`이 되면 **Connect → Web Terminal** 또는 Jupyter Lab의 Terminal
+5. Deploy → `Running`이 되면 **Connect → Web Terminal**을 엽니다. `Start` 버튼이 보이면 누른 후 **Open Web Terminal**을 선택합니다. JupyterLab의 Terminal도 사용할 수 있습니다. [Runpod 접속 문서](https://docs.runpod.io/pods/connect-to-a-pod)
 6. 터미널에서:
 
    ```bash
    cd /workspace
-   git clone https://github.com/<your-id>/metacode_sglang_study.git
+   git clone --branch main https://github.com/mlleo/metacode_sglang_study.git
    cd metacode_sglang_study
    bash common/setup_pod.sh      # 3–8분: SGLang 0.5.23 설치 + 모델 다운로드
    ```
@@ -85,7 +84,7 @@ Terminate하면 디스크가 통째로 사라집니다. **꺼내고 나서** Ter
 | `runpodctl send` | Pod: `runpodctl send s01_results.tgz` → 출력된 코드로 로컬에서 `runpodctl receive <code>` | RunPod 이미지에 보통 포함 |
 | git push | 결과만 커밋해서 fork에 push | **토큰을 노트북·스크립트에 하드코딩하지 마세요.** 쓰고 나면 토큰 폐기 |
 
-그래프는 **로컬에서** `python common/plot.py ...`로 그립니다. GPU 위에서 matplotlib 돌리는 데 돈을 쓰지 마세요.
+그래프는 **로컬에서** `python3 common/plot.py ...`로 그립니다. GPU 위에서 matplotlib 돌리는 데 돈을 쓰지 마세요.
 
 ## 6. Stop vs Terminate
 
@@ -93,19 +92,14 @@ Terminate하면 디스크가 통째로 사라집니다. **꺼내고 나서** Ter
 |---|---|---|
 | GPU 과금 | 멈춤 | 멈춤 |
 | 디스크 과금 | **계속됨** (Volume Disk 유지 비용) | 멈춤 |
-| 데이터 | Volume(`/workspace`)은 유지, Container Disk는 사라짐 | **전부 사라짐** |
+| 데이터 | Volume Disk(`/workspace`)을 붙였다면 그 내용은 유지, Container Disk는 사라짐 | Container Disk와 Pod의 Volume Disk는 사라짐. 별도로 연결한 Network Volume은 유지 |
 | 언제 | 같은 날 1–2시간 쉬었다 이어갈 때 | 그날 실습이 끝났을 때 — **기본값** |
 
 Terminate 후 Pods 목록에서 카드가 **완전히 사라졌는지** 확인하세요.
 
 ### (선택) 깜빡 방지 안전장치
 
-Pod 안에서 아래를 실행해 두면 3시간 뒤 Pod이 스스로 멈춥니다. (`runpodctl`과 `RUNPOD_POD_ID` 환경 변수는 RunPod Pod에
-기본으로 들어 있는 경우가 많지만, 템플릿에 따라 없을 수 있으니 처음에 한 번 `echo $RUNPOD_POD_ID`로 확인하세요.)
-
-```bash
-nohup bash -c "sleep 3h && runpodctl stop pod \$RUNPOD_POD_ID" >/dev/null 2>&1 &
-```
+로컬 CLI로 Pod를 만들 때 `runpodctl pod create`에 `--stop-after 3h`를 추가할 수 있습니다. 타이머 전에 결과를 내려받으세요. [Runpod CLI 옵션](https://docs.runpod.io/runpodctl/reference/runpodctl-remove-pods)
 
 Stop은 디스크 과금이 남으므로, 다음 날 꼭 Terminate하세요.
 
@@ -127,9 +121,11 @@ Stop은 디스크 과금이 남으므로, 다음 날 꼭 Terminate하세요.
 | **예비비** | | | **$4.9** | 실수·재실행·Stop 디스크 비용 |
 | **합계** | | | **$20.0** | |
 
-**예산 규칙**
+**실습 시작 전에 쓸 시간을 정하세요.**
 
-- 회차 소계를 넘기면 다음 회차 발표 때 "왜 넘었는지"를 한 줄로 공유합니다 (비용 감각도 inference engineering의 일부).
+- 사용할 수 있는 시간(분)은 `60 × GPU에 쓸 금액 ÷ 표시된 시간당 가격`입니다. 예를 들어 $0.80과 $0.60/h면 약 80분입니다. 여기서 설치, 서버 재시작, 다운로드 시간을 먼저 뺍니다. 55분 실습이 0:55에 시작하면 0:40–0:50 사이에 준비를 시작하는 편이 맞습니다. 수업 도입부터 1:50까지 켜 두면 같은 단가에서 약 $1.10입니다. 저장 공간 요금은 별도로 확인하세요.
+- 과제에서는 수업 CSV를 다시 쓰고 필수 비교부터 실행합니다. 예산이 빠듯하면 강사에게 같은 문항을 풀 수 있는 기준 데이터를 받아 로컬에서 분석하세요.
+- 결과는 각 실험이 끝날 때 내려받습니다. `common/stop.sh`는 SGLang 프로세스를 종료합니다. GPU 임대를 마치려면 RunPod 콘솔에서 Pod를 종료해야 합니다.
 - 모든 GPU 사용은 [templates/gpu_usage_log.csv](../templates/gpu_usage_log.csv) 형식으로 기록합니다.
 - 비싼 실험(긴 sweep)은 **작은 설정으로 먼저 한 번** 돌려 스크립트가 끝까지 도는지 확인하고 본 실험을 돌립니다.
 - 모델 다운로드는 Pod마다 다시 일어납니다 (Qwen3-1.7B ≈ 4 GB, 보통 1분 내외).

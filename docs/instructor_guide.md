@@ -2,24 +2,52 @@
 
 ## 1. 개강 전 (1–2주 전)
 
-### 리허설은 필수입니다
+### GPU 리허설
 
-이 레포의 스크립트는 SGLang v0.5.23 소스(플래그 정의, 로그 형식, 벤치마크 도구 인자)를 직접 확인하고 작성했고,
-**GPU 없이 mock 서버로 클라이언트·파서·그래프 도구를 검증**했습니다. 하지만 **실제 RTX 4090 + RunPod에서 끝까지 돌려 본 것은 아닙니다.**
-수업 전에 강사가 한 번씩 돌려 아래를 확인하고, 숫자를 강의 노트의 "예측 질문" 정답으로 채워 두세요.
+H100 한 장에서 설치, 실행, 결과 파일을 먼저 확인하고, 수강생 환경은 RTX 4090 RunPod에서 짧게 재현합니다. H100의 시간과 메모리 수치는 학생용 예상 범위에 넣지 않습니다. 새 결과를 만들 때는 GPU와 Pod가 다른 작업과 겹치지 않게 한 장을 지정하고 빈 체크아웃에서 시작합니다. 아래 대역폭 3,350 GB/s는 [H100 SXM 80 GB 사양](https://docs.nvidia.com/enterprise-reference-architectures/hgx-ai-factory-h100-h200-b200/latest/components.html)입니다.
 
-| 회차 | 리허설에서 확인할 것 | 실패하면 |
-|---|---|---|
-| 공통 | CUDA 13 필터로 4090 Pod이 뜨는지, `setup_pod.sh` 소요 시간, 템플릿 A/B 중 무엇을 쓸지 | 필터 13.0+ 확인, 안 되면 `lmsysorg/sglang:v0.5.23-runtime` 이미지(B)로 |
-| 1 | `manual_decode.py`의 `logits_to_keep` 인자, `first_requests.py`의 `chat_template_kwargs` | 해당 인자 제거 (주석 참고) |
-| 2 | `py-spy dump` 권한, sweep 소요 시간 | py-spy는 선택 실습으로 |
-| 3 | `policy_compare.sh`에서 LPM/FCFS 차이가 보이는 pool 크기 | 16000으로 줄여 공지 |
-| 4 | `retraction_sweep.sh`의 `eos`에서 retraction이 실제로 일어나는지, `nochunk`에서 OOM 여부 | `--max-new-tokens 2048` / pool 20000 / `--mem-fraction-static 0.6` |
-| 4 | `interference_sweep.sh`에서 nochunk/4096/1024의 최악 멈춤이 비슷하고 mx·pd에서 줄어드는지 (이론 §4.3의 주장 — 코드 읽기로 도출했으므로 꼭 실측 확인) | 결과가 다르면 lecture §4.3–4.6을 실측에 맞게 수정 |
-| 5 | `--quantization fp8`, `--kv-cache-dtype fp8_e4m3`, NGRAM이 4090에서 시작되는지 | 안 되는 조합은 lab에서 제외하고 공지 |
-| 6 | `/start_profile`로 trace가 생성되는지, 파일 크기 | `num_steps`를 5로 |
+```bash
+# 리허설할 커밋의 저장소 루트
+export CUDA_VISIBLE_DEVICES=0
+export PORT=30123
+source common/env.sh
+bash common/setup_pod.sh
 
-리허설 비용은 회차당 약 $1–1.5입니다.
+# Session 1 · HF forward, Session 1–3 · HTTP, batching, prefix
+python3 session01_fundamentals/code/manual_decode.py --experiment batch --bw-gbs 3350 --out results/s01_manual.csv
+bash common/launch.sh baseline --chunked-prefill-size 4096
+python3 session01_fundamentals/code/first_requests.py
+bash session02_architecture_batching/code/sweep_concurrency.sh rehearsal "1 8" 512 256
+python3 session02_architecture_batching/code/bench_to_csv.py results/s02_rehearsal.jsonl
+python3 session03_kvcache_radix/code/prefix_basics.py
+bash common/stop.sh
+
+# Session 4–6 · 간섭, graph, trace, CSV 소비
+bash session04_scheduler/code/interference_sweep.sh
+BS="1 16" bash session05_execution/code/onebatch_sweep.sh base
+BS="1 16" bash session05_execution/code/onebatch_sweep.sh nograph --cuda-graph-backend-decode disabled
+python3 session05_execution/code/onebatch_to_csv.py results/s05_onebatch.jsonl --peak-gbs 3350
+bash session06_benchmark_production/code/profile_decode.sh c1 1
+python3 session06_benchmark_production/code/trace_summary.py profiles/c1 --stage decode
+python3 session06_benchmark_production/code/cost_calc.py results/s02_rehearsal.csv \
+  --usd-per-hour 0.60 --throughput output_throughput --load max_concurrency \
+  --slo p95_ttft_ms=500 --slo p95_itl_ms=50
+```
+
+`logs/env.txt`와 결과를 한 묶음으로 보관하고, 실행한 커밋과 펼칠 자료를 기록합니다. 입출력 길이, 성공 요청 수, 빈 CSV, 잘못된 숫자를 먼저 확인합니다. Session 4는 긴 요청이 기존 스트림과 겹친 실행만 비교합니다. Session 6은 Perfetto에서 받은 파일을 한 번 열어 봅니다.
+
+RTX 4090 Pod에서는 수강생과 같은 이미지로 아래 항목을 확인합니다.
+
+| 회차 | 4090에서 확인할 것 |
+|---|---|
+| 1 | 새 Pod 준비 시간, HF와 SGLang 실행 및 결과 내려받기 |
+| 2 | 필수 sweep 소요 시간과 로그, 두 p95 열과 완료 요청 수 |
+| 3 | 자동 설정으로 선택된 pool 크기와 page size, 반복 요청의 `cached_tokens` |
+| 4 | 두 조건의 실제 overlap, retraction 예시 로그 확보, 최대 ITL과 긴 요청 TTFT 비교 |
+| 5 | 기본 graph가 적용되는 batch 크기, CUDA graph ON/OFF. 선택 FP8 실습은 4090에서 별도 확인 |
+| 6 | trace 다운로드와 비용 분석. ON/OFF trace와 Session 2 기준 CSV를 수업 전에 준비 |
+
+수강생이 받을 기준 데이터는 `env.txt`, 명령, 원시 로그와 CSV, 작은 trace 하나를 같이 둡니다. 예측 문제에는 정답표 대신 어떤 근거를 봐야 하는지 적고, 수치는 장비가 표시된 예시로 제공합니다. 개인 계정의 한도나 장비 장애로 실행이 어려우면 같은 지표를 기준 데이터에서 분석해 제출할 수 있게 합니다.
 
 ### 공지할 것
 
@@ -37,13 +65,13 @@
 
 ### 이론 (40분)
 
-- `lecture.md`는 수업 + 복습용 완결 자료라 40분에 다 할 수 없습니다. 맨 위의 **"수업용 추천 구성"(★ 절)** 을 기준으로 고르고, 📖 절(코드 발췌, 심화, 자기 점검 문제와 답)은 복습 과제로 안내하세요.
+- `lecture.md`는 수업 + 복습용 완결 자료라 40분에 다 할 수 없습니다. 상단의 **40분 진행안**을 따라가고, 📖 절(코드 발췌, 심화, 자기 점검 문제와 답)은 복습 과제로 안내하세요.
 - **칠판에서 직접 계산하는 절**(S1 §5 roofline, S3 §4.4 tree 손 추적, S4 §2.5 admission 예제)은 줄이지 마세요.
 - 각 lecture 끝의 "실습 전 예측 질문"은 실습 직전에 학생들이 숫자로 적게 합니다. 실습 후 실제 값과 비교하는 시간이 가장 학습 효과가 큽니다.
 
 ### 실습 (55분)
 
-- **수업 시작(발표 시간)에 Pod Deploy + setup**을 걸어 두게 하세요. 설치에 3–8분 걸리므로 이론이 끝날 때쯤 준비됩니다.
+- Pod는 리허설에서 잰 준비 시간만큼 실습보다 앞서 시작합니다. 발표와 강의 앞부분은 로컬에서 진행합니다.
 - 서버를 여러 번 띄우는 회차(4, 5)는 스크립트가 자동으로 launch/stop합니다. 기다리는 동안 로그 읽기 질문을 던지세요.
 - **종료 10분 전 일괄 "결과 다운로드 → Terminate"** 안내. 이걸 안 하면 반드시 누군가는 밤새 Pod을 켜 둡니다.
 
@@ -75,9 +103,9 @@ SGLang은 매달 릴리스가 나옵니다. 다음 기수에 버전을 올릴 �
 
 1. `common/env.sh`의 `SGLANG_VERSION` 변경
 2. [code_map.md](code_map.md)의 심볼을 새 버전에서 `grep`으로 재확인
-3. 플래그 확인: `python -m sglang.launch_server --help | grep -E "cuda-graph|chunked|schedule|quantization|speculative"`
+3. 플래그 확인: `python3 -m sglang.launch_server --help | grep -E "cuda-graph|chunked|schedule|quantization|speculative"`
 4. 로그 형식 확인: `common/logparse.py`로 새 로그를 파싱해 필드가 다 나오는지
-5. 벤치마크 경로 확인: `python -m sglang.benchmark.serving --help`
+5. 벤치마크 경로 확인: `python3 -m sglang.benchmark.serving --help`
 6. 각 lab을 리허설
 
 ## 6. 이전 자료와의 관계
