@@ -75,16 +75,18 @@ def measure_request(
     return record
 
 
-def execute_workload(track: str, profile: str, seed: int, url: str, timeout: float) -> dict:
-    specs, concurrency = make_workload(track, profile, seed)
-    # An unrelated warm-up exercises the same endpoint before each measured cold start.
-    warm = {"idx": -1, "input_ids": random_ids(32, seed=90281), "max_new_tokens": 8}
+def warm_up(specs: list[dict], url: str, timeout: float) -> None:
+    # Exercise the longest prefill shape using unrelated tokens, then reset cache.
+    length = max(len(spec["input_ids"]) for spec in specs)
+    warm = {"idx": -1, "input_ids": random_ids(length, seed=90281), "max_new_tokens": 8}
     response = measure_request(warm, time.perf_counter(), url, timeout)
     if response.get("error"):
         raise RuntimeError(f"워밍업 실패. {response['error']}")
     if not flush_cache(url):
         raise RuntimeError("cache flush가 실패했습니다.")
 
+
+def execute_workload(track: str, specs: list[dict], concurrency: int, url: str, timeout: float) -> dict:
     origin = time.perf_counter()
 
     def send(spec, on_first_token=None):

@@ -29,7 +29,7 @@ def paired_interval(deltas: list[float]) -> tuple[float, float | None, float | N
 
 def load_campaign(path: Path) -> tuple[dict, dict]:
     manifest = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
-    if manifest["schema"] != 1 or manifest["track"] not in OBJECTIVES:
+    if manifest["schema"] != 1 or manifest["track"] not in OBJECTIVES or "baseline" not in manifest["config_names"]:
         raise ValueError("지원하지 않는 manifest입니다.")
     rows = {}
     workloads = {}
@@ -68,7 +68,7 @@ def summarize_campaign(manifest: dict, rows: dict, chat_itl: float, chat_gap: fl
         "batch": (("wall_s", deadline),),
     }[track]
     configs = manifest["config_names"]
-    reference = "baseline" if "baseline" in configs else configs[0]
+    reference = "baseline"
     seeds = manifest["seeds"]
     summaries = []
     for profile in manifest["profiles"]:

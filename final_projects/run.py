@@ -16,12 +16,15 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from workloads import PROFILES, TRACKS, execute_workload, timeline
+from workloads import PROFILES, TRACKS, execute_workload, make_workload, timeline, warm_up
 from client import server_info
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIGS = Path(__file__).with_name("configs.json")
-RESERVED_FLAGS = {"--model", "--model-path", "--host", "--port", "--log-level"}
+MODEL = "Qwen/Qwen3-1.7B"
+MODEL_REVISION = "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+SGLANG_VERSION = "0.5.23"
+RESERVED_FLAGS = {"--model", "--model-path", "--revision", "--host", "--port", "--log-level"}
 
 
 def write_json(path: Path, data: object) -> None:
@@ -45,6 +48,8 @@ def select_configs(path: Path, track: str, names: list[str]) -> dict[str, list[s
             raise ValueError(f"{name}의 server argument는 문자열이어야 합니다.")
         if any(arg.split("=", 1)[0] in RESERVED_FLAGS for arg in args):
             raise ValueError("모델은 MODEL 환경 변수로 지정하세요. 포트와 주소는 runner가 관리합니다.")
+        if os.environ.get("MODEL", MODEL) == MODEL:
+            args = ["--revision", MODEL_REVISION, *args]
         selected[name] = args
     return selected
 
@@ -91,9 +96,14 @@ def metadata(args, settings: dict[str, list[str]], mode: str) -> dict:
             ["nvidia-smi", "--query-gpu=name,memory.total,driver_version", "--format=csv,noheader"],
             text=True, capture_output=True, check=True,
         )
-        info.update(gpu=gpu.stdout.strip().splitlines(), model=os.environ.get("MODEL", "Qwen/Qwen3-1.7B"),
+        installed = importlib.metadata.version("sglang")
+        if installed != SGLANG_VERSION:
+            raise ValueError(f"SGLang {SGLANG_VERSION}이 필요합니다. 설치 버전은 {installed}입니다. bash common/setup_pod.sh를 실행하세요.")
+        model = os.environ.get("MODEL", MODEL)
+        info.update(gpu=gpu.stdout.strip().splitlines(), model=model,
+                    model_revision=MODEL_REVISION if model == MODEL else None,
                     cuda_visible_devices=os.environ.get("CUDA_VISIBLE_DEVICES"),
-                    sglang=importlib.metadata.version("sglang"), torch=importlib.metadata.version("torch"))
+                    sglang=installed, torch=importlib.metadata.version("torch"))
     return info
 
 
@@ -120,8 +130,15 @@ def execute(args, settings) -> None:
                 for profile in args.profiles:
                     tag = f"{name}_{profile}_s{seed}"
                     print(f"== {args.track} / {tag} ==", flush=True)
+                    specs, concurrency = make_workload(args.track, profile, seed)
+                    try:
+                        warm_up(specs, url, args.timeout)
+                    except RuntimeError as error:
+                        write_json(paths / f"{tag}.json", {"errors": [str(error)], "stage": "warmup"})
+                        raise
                     log_start = log.stat().st_size if owns_server else None
-                    measure = execute_workload(args.track, profile, seed, url, args.timeout)
+                    measure = execute_workload(args.track, specs, concurrency, url, args.timeout)
+                    log_end = log.stat().st_size if owns_server else None
                     write_json(paths / f"{tag}.json", measure)
                     if measure["errors"]:
                         raise RuntimeError(f"{tag}: {'; '.join(measure['errors'])}")
@@ -132,7 +149,7 @@ def execute(args, settings) -> None:
                            "expected_requests": measure["expected_requests"], **measure["metrics"]}
                     if owns_server:
                         row.update(log=str(log.relative_to(out)), log_start_byte=log_start,
-                                   log_end_byte=log.stat().st_size)
+                                   log_end_byte=log_end)
                     rows.append(row)
                     print(json.dumps(row, ensure_ascii=False), flush=True)
         finally:
@@ -172,6 +189,8 @@ def main() -> None:
     args = parser.parse_args()
     try:
         args.configs = comma_list(args.configs)
+        if "baseline" not in args.configs:
+            raise ValueError("모든 campaign에 baseline을 포함하세요.")
         seed_names = comma_list(args.seeds)
         if any(not value.isdecimal() for value in seed_names):
             raise ValueError("seed는 0 이상의 정수여야 합니다.")
