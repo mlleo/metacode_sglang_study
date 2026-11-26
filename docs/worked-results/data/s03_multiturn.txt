@@ -1,0 +1,15 @@
+== 방식 ids: token 그대로 이어 붙이기 ==
+turn 1: prompt=   33 cached=    0 hit=0%
+turn 2: prompt=  103 cached=   86 hit=83%
+turn 3: prompt=  201 cached=  182 hit=91%
+turn 4: prompt=  296 cached=  280 hit=95%
+turn 5: prompt=  393 cached=  375 hit=95%
+turn 6: prompt=  491 cached=  472 hit=96%
+
+== 방식 text: 텍스트로 이어 붙이고 서버가 다시 토크나이즈 ==
+turn 1: prompt=   33 cached=    0 hit=0%
+turn 2: prompt=  103 cached=   86 hit=83%
+turn 3: prompt=  202 cached=  182 hit=90%
+turn 4: prompt=  298 cached=  281 hit=94%
+turn 5: prompt=  396 cached=  377 hit=95%
+turn 6: prompt=  495 cached=  475 hit=96%

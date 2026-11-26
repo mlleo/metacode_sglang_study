@@ -37,3 +37,17 @@ HTTP 서버에서 `bash common/launch.sh graph_limit --cuda-graph-max-bs-decode 
 FP8 weight는 로딩 로그의 weight 메모리를 3.28→1.92 GB로 줄였습니다. FP8 KV는 같은 모델 weight에서 `#tokens`를 579,196→1,158,393으로 늘렸습니다. 그런데 동시성 1의 ITL 중앙값은 BF16 2.27 ms, FP8 KV 2.38 ms였습니다. 저장할 수 있는 토큰 수와 한 step의 속도를 따로 봐야 합니다. `Load weight end`와 `KV Cache is allocated`에서 실제 dtype·용량을 확인하고, 부하 CSV의 `itl_ms_p50`과 `output_tok_per_s`를 같은 동시성끼리 비교합니다. [양자화 CSV](data/s05_quant.csv) · [메모리 로그 발췌](data/s05_quant_memory.txt)
 
 NGRAM은 두 서버의 메모리 비율을 0.7, decode graph 상한을 8로 맞췄습니다. 동시성 1에서 `per_req_decode_tok_per_s`는 반복적인 코드 출력에서 444→3,586, 창작 출력에서 447→418이었습니다. `completion_len_mean`은 두 경우 모두 400이었습니다. 먼저 같은 workload와 동시성의 CSV 행을 비교한 뒤, 서버 로그의 `accept len`으로 한 검증 step에 몇 토큰이 나왔는지 봅니다. 반복 구간에서는 15.12, 창작 구간에서는 1.18인 줄이 있었습니다. 이 발췌 값은 각 구간의 예시이며 전체 실행 평균은 아닙니다. 여러 토큰이 한 청크에 오면 클라이언트는 간격을 나눠 기록하므로 체감 출력 간격도 관심사라면 청크 도착 간격을 따로 잽니다. [NGRAM CSV](data/s05_spec.csv) · [서버 로그 발췌](data/s05_spec_excerpt.txt)
+
+attention backend를 바꾼 실행은 입력 512, 출력 64에서 H100의 자동 선택 기준선과 Triton을 비교했습니다. batch 16에서 `prefill_latency_ms`는 42.97→644.44 ms, `median_decode_latency_ms`는 3.008→2.971 ms였습니다. standalone 도구는 각 batch의 prefill을 한 번씩 기록합니다. 첫 실행이나 컴파일의 영향인지 확인하려면 해당 shape를 워밍업한 뒤 prefill을 반복합니다. 0.04 ms 정도인 decode 차이도 이 한 번의 순위로 결론 내리지 않습니다. 로그에 실제 backend를 남기세요. 이 표는 4090의 flashinfer 대 Triton 비교 결과로 사용할 수 없습니다. [backend CSV](data/s05_triton.csv)
+
+## 다른 최적화를 과제로 고른 경우
+
+| 바꿀 조건 | 먼저 읽을 값 |
+|---|---|
+| graph 또는 overlap에서 모델 크기 | 모델별로 ON/OFF를 따로 묶고, decode 시간·TTFT·ITL과 그래프 capture 시간 또는 처리량을 적습니다. [Overlap 예시](session04.md#선택-실습에서-overlap-scheduling-읽기) |
+| FP8 weight의 batch / FP8 KV의 context | weight 비교는 동일한 KV dtype, KV 비교는 동일한 weight를 유지합니다. 용량과 속도를 함께 보고 동일한 프롬프트에서 출력도 확인합니다. |
+| Attention backend의 context | backend를 양쪽에 명시하고 각 context에서 워밍업한 prefill과 decode 중앙값을 따로 비교합니다. |
+| NGRAM의 동시성 / draft 크기 | 같은 prompt와 출력 조건에서 `accept len`과 요청당 decode tok/s를 함께 기록합니다. draft 크기와 동시성은 하나씩 바꿉니다. |
+| `torch.compile`의 batch | 시작 시간, 첫 요청, 워밍업 뒤 step 중앙값을 분리합니다. 같은 batch의 반복 실행에서 컴파일 비용을 회수할 수 있는지 확인합니다. |
+
+위 조건을 모두 조합해 측정한 데이터는 없습니다. 우선 비교점 두 개를 정하고, 제출 노트에는 가설·설정·결과·근거·한계를 한 페이지에 맞춥니다.

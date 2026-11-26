@@ -28,6 +28,14 @@ SGLang TTFT 중앙값은 입력 128·512·2,048에서 7.57·7.59·14.57 ms였습
 
 [배치별 그래프 입력](data/s01_plot_batch.csv) · [입력 길이별 그래프 입력](data/s01_plot_input.csv) · [HF 수동 CSV](data/s01_manual.csv) · [HF generate CSV](data/s01_hf.csv) · [SGLang CSV](data/s01_sglang.csv) · [TTFT CSV](data/s01_ttft_vs_inlen.csv)
 
+4090의 단순 대역폭 모델에서 3.44 ms/step의 역수를 취하면 batch 1의 상한은 약 291 tok/s입니다. 같은 예산에서 BF16 Qwen3-8B는 4,096-token 요청 두 개를 담는 것으로 계산됐습니다. 실제로 필요한 런타임 여유를 빼면 용량은 더 작아질 수 있습니다. 모델이 맞지만 KV가 좁으면 context나 동시성을 줄이고, weight 여유가 부족하면 더 작은 모델이나 weight 양자화를 검토합니다.
+
+### 과제 D 보고서 문장 예시
+
+“배치가 커지면 step 시간도 크게 늘 것으로 예상했다. 입력 512와 출력 64를 고정하고 batch만 1에서 32로 늘렸다. HF 수동 decode의 step 중앙값은 41.62→42.22 ms, 처리량은 24.8→768.2 tok/s였다. 한 번의 forward로 더 많은 요청의 다음 토큰을 만들면서 처리량이 약 31배가 됐다.”
+
+엔진 차이의 후보로 Python·CUDA launch 비용, attention backend, 요청을 묶는 스케줄링을 적을 수 있습니다. 이 데이터에서 batch 크기와 함께 처리량이 크게 변했으므로 먼저 step마다 처리한 요청 수를 맞춰 보겠습니다. 같은 batch에서 CUDA graph를 끄고 launch가 늘어나는지는 [Session 5](session05.md)와 [Session 6](session06.md)의 비교로 따로 확인합니다.
+
 ## 재현
 
 [실습 1–4](../../session01_fundamentals/lab.md)와 [과제 Part C](../../session01_fundamentals/assignment.md)를 실행했습니다. H100의 수동 실험은 `manual_decode.py --bw-gbs 3350`을 사용했습니다.

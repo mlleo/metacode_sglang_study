@@ -2,14 +2,16 @@
 
 한 장의 H100에서 여섯 회차의 필수 실습과 기본 과제 경로를 실행했습니다. 수업에서 결과를 어떻게 읽고 보고서에 옮기는지 보여 주는 예시입니다. RTX 4090에서 얻은 값과 숫자 자체를 비교하기 전에 GPU, backend, 동시성, 입력·출력 길이와 측정 범위를 맞추세요.
 
-| 회차 | 예시 | 확인한 것 |
+| 회차 | 실습에서 찾아볼 것 | 과제에서 찾아볼 것 |
 |---|---|---|
-| 1 | [첫 요청과 추론 시간](session01.md) | prefill·decode 구분, KV 계산, 입력 길이별 TTFT |
-| 2 | [동시성과 SLO](session02.md) | 시간차 도착, 두 입력 길이의 latency–throughput 곡선 |
-| 3 | [Radix tree와 공유 prefix](session03.md) | 손으로 트리 추적, cache hit와 처리량 |
-| 4 | [긴 입력이 기존 스트림에 미치는 영향](session04.md) | 8K·16K, mixed ON/OFF, p99와 최장 멈춤 |
-| 5 | [CUDA graph 실험 노트](session05.md) | batch 크기와 입력 길이별 graph 효과 |
-| 6 | [반복·trace·비용과 최종 프로젝트](session06.md) | 반복 변동, Perfetto, 지연 기준을 만족하는 비용 |
+| [1. 첫 요청과 추론 시간](session01.md) | HF 수동 decode·generate, SGLang 첫 요청과 측정 범위 | KV·roofline 계산, 두 그래프, 해석 문장 |
+| [2. 동시성과 SLO](session02.md) | 유휴 스택, 요청 로그와 타임라인, 동시성·도착률 sweep | 512·2,048의 SLO, 팀장 보고, 요청 경로 그림 |
+| [3. Radix tree와 공유 prefix](session03.md) | KV pool, cold/warm, 멀티턴, LPM·FCFS | 손 추적, 공유율 곡선, 코드 리딩, 선택 대조군 설계 |
+| [4. 긴 입력과 출력 끊김](session04.md) | admission·retraction 로그, 16K 간섭, overlap | 슬롯 계산, 8K·16K SLO, 타임라인, 코드 리딩 |
+| [5. CUDA graph와 실행 최적화](session05.md) | decode step·graph 상한, backend, FP8, NGRAM | 기본 ON/OFF 노트, 다른 최적화에서 볼 지표 |
+| [6. 반복·trace·비용](session06.md) | 반복 변동, Perfetto, Prometheus, SLO를 만족하는 비용 | 최종 프로젝트 리허설, 짝별 비교와 신뢰구간 |
+
+실측한 실험에는 CSV나 로그를 연결했습니다. 측정하지 않은 선택 변형에는 고정할 조건과 읽을 지표를 적었습니다. 최종 프로젝트는 입력 길이 한 가지를 바꾼 완성 예시를 싣습니다.
 
 ## 실행 환경
 

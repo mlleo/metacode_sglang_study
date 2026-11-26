@@ -1,0 +1,5 @@
+run_name,batch_size,input_len,output_len,prefill_latency_ms,prefill_tok_per_s,median_decode_latency_ms,median_decode_tok_per_s,est_step_gb,achieved_gbs,bw_util_pct,kv_share_pct
+base,1,512,64,5.35,95785.6,2.499,400.2,3.502,1401.5,41.8,1.8
+base,16,512,64,42.97,190635.2,3.008,5319.0,4.438,1475.4,44.0,22.5
+triton,1,512,64,5.82,88001.3,2.564,390.0,3.502,1366.1,40.8,1.8
+triton,16,512,64,644.44,12711.8,2.971,5385.3,4.438,1493.8,44.6,22.5
