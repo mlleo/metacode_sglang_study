@@ -24,9 +24,9 @@
 3. batch 1에서 GPU에 기록된 이벤트 시간의 합은 21.2 ms와 21.4 ms로 비슷했지만 관측 범위는 33.5 ms와 290.6 ms였습니다. GPU 이벤트 밖의 시간이 커졌다는 증거입니다. 짧은 프로파일에서 나온 7.4%를 그 서버의 평소 GPU 사용률로 해석할 수는 없습니다.
 4. graph ON의 batch 1과 32를 비교하면 attention은 합산 이벤트 시간의 12.8%에서 24.2%로 늘었습니다. 실제 커널 이름도 함께 확인합니다. 이 표의 분류는 커널 이름으로 추정했으며, 합산 비중은 겹친 시각의 이벤트도 각각 셉니다. GPU busy는 겹친 시각을 한 번만 셉니다.
 
-표는 전체 10-step 캡처의 요약입니다. Perfetto 파일은 실제 다섯 번째 decode step 한 개를 읽기 쉽게 발췌했습니다. GPU 이벤트·CUDA 호출·step 표시가 남아 있어 CPU–GPU 시간축을 비교할 수 있습니다. Python 호출 스택까지 보고 싶다면 [실습 2](../../session06_benchmark_production/lab.md)를 실행해 전체 trace를 사용합니다. [c1 요약](data/s06_trace_c1.txt) · [c1_nograph 요약](data/s06_trace_c1_nograph.txt) · [c32 요약](data/s06_trace_c32.txt)
+표는 전체 10-step 캡처의 요약입니다. Perfetto 파일은 실제 다섯 번째 decode step 한 개를 읽기 쉽게 발췌했습니다. GPU 이벤트·CUDA 호출·step 표시가 남아 있어 CPU–GPU 시간축을 비교할 수 있습니다. Graph ON 파일을 열면 겹친 이벤트가 별도 줄에 표시될 수 있습니다. 줄의 위치보다 이벤트의 시작과 종료 시각을 비교하세요. Python 호출 스택까지 보고 싶다면 [실습 2](../../session06_benchmark_production/lab.md)를 실행해 전체 trace를 사용합니다. [c1 요약](data/s06_trace_c1.txt) · [c1_nograph 요약](data/s06_trace_c1_nograph.txt) · [c32 요약](data/s06_trace_c32.txt)
 
-Prometheus에서는 `time_to_first_token_seconds_bucket`과 `inter_token_latency_seconds_bucket`이 누적됩니다. 비교할 부하를 보내기 전과 후에 같은 bucket을 읽어 차이를 냅니다. client CSV와 다른 값을 보았을 때 서버·클라이언트의 시작과 끝, bucket 폭, 포함된 요청을 먼저 확인합니다. 예를 들어 이 리허설의 서버 histogram은 health·warm-up까지 합쳐 205개를 담았고 프로젝트 CSV에는 각 실행의 32개만 있습니다.
+Prometheus에서는 `time_to_first_token_seconds_bucket`과 `inter_token_latency_seconds_bucket`이 누적됩니다. 비교할 부하를 보내기 전과 후에 같은 bucket을 읽어 차이를 냅니다. client CSV와 다른 값을 보았을 때 서버·클라이언트의 시작과 끝, bucket 폭, 포함된 요청을 먼저 확인합니다. 예를 들어 이 리허설에서는 여러 실행 뒤에 읽은 서버 histogram에 205개가 잡혔고, 프로젝트 CSV에는 실행별로 측정한 32개씩만 들어갑니다.
 
 ## 비용에서 지킬 기준
 
@@ -45,6 +45,8 @@ Prometheus에서는 `time_to_first_token_seconds_bucket`과 `inter_token_latency
 | p95 TTFT (ms) | 31.49 | 95.56 | +64.07 | [+61.17, +66.98] |
 | output tok/s | 2,975.37 | 2,338.48 | −636.89 | [−645.15, −628.63] |
 
+아래 명령으로 p95 TTFT와 출력 처리량 그래프를 각각 그립니다. 한 선이 같은 seed의 두 실행을 잇습니다. 표의 평균을 보기 전에 세 선이 같은 방향인지, 유난히 큰 차이가 한 seed에 몰렸는지 봅니다.
+
 **해석.** 같은 seed의 두 실행에서 `ttft_ms_p95`의 차이를 구하면 +62.91, +64.06, +65.25 ms입니다. 이 세 차이로 평균의 t 구간을 계산했습니다. 지연은 약 3배, 처리량은 약 21% 감소했습니다. Session 2의 `#new-token`과 큐 집계를 함께 보면 긴 입력이 prefill 부하를 늘렸다는 설명과 맞습니다. 이 실험만으로 원인별 시간을 분해할 수는 없습니다. 다음 실험에서는 실행 순서를 교대로 바꾸고 동일 동시성에서 extend trace를 찍어 prefill 시간을 직접 비교합니다.
 
 [본 측정 CSV](data/s06_project.csv) · [실행 스크립트](project/run.sh) · [짝별 차이 계산](project/analyze.py)
@@ -54,6 +56,6 @@ Prometheus에서는 `time_to_first_token_seconds_bucket`과 `inter_token_latency
 bash common/setup_pod.sh
 bash docs/worked-results/project/run.sh results/my_project.csv
 
-# CSV를 받은 로컬 저장소
-python3 docs/worked-results/project/analyze.py results/my_project.csv
+# CSV를 받은 로컬 저장소 (그래프를 그리려면 matplotlib 필요)
+python3 docs/worked-results/project/analyze.py results/my_project.csv --figures figures/my_project
 ```

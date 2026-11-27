@@ -25,7 +25,7 @@
 
 H100에서는 이미 설치된 SGLang과 해시를 확인한 모델 캐시를 썼습니다. 새 RTX 4090 RunPod의 설치 시간, 다운로드, 과금은 강사 리허설에서 따로 확인합니다. [강사 가이드](../instructor_guide.md)
 
-표와 그래프의 입력 파일은 [data/](data/)에 있습니다. 로컬 저장소에서 `bash docs/worked-results/plot_examples.sh`를 실행하면 예시 그래프를 다시 그릴 수 있습니다. 파일을 바꿔 직접 그린 그림이나 보고서에는 GPU와 설정을 함께 적으세요. 같은 명령을 다시 실행할 때는 이전 파일을 복사해 두면 누적된 행을 새 반복으로 착각하는 일을 피할 수 있습니다.
+표와 그래프의 입력 파일은 [data/](data/)에 있습니다. 로컬 Python 환경에 `matplotlib`, `pandas`를 설치하고 저장소 루트에서 `bash docs/worked-results/plot_examples.sh`를 실행하면 `figures/worked-results/`에 예시 그래프가 생깁니다. 파일을 바꿔 직접 그린 그림이나 보고서에는 GPU와 설정을 함께 적으세요. GPU 측정을 다시 실행할 때는 새 CSV 경로를 쓰면 누적된 행을 새 반복으로 착각하는 일을 피할 수 있습니다.
 
 ## 내 결과를 읽는 순서
 

@@ -13,7 +13,10 @@ python3 common/plot.py "$DATA/s02_base.csv" "$DATA/s02_in2k.csv" --x max_concurr
 python3 common/plot.py "$DATA/s02_base.csv" "$DATA/s02_in2k.csv" --x output_throughput --y p95_ttft_ms \
   --group tag --annotate max_concurrency --out "$OUT/s02_latency.png"
 python3 common/plot.py "$DATA/s03_share.csv" --x shared_prefix_len --y output_tok_per_s,ttft_ms_p50 --out "$OUT/s03_share.png"
+python3 docs/worked-results/plot_interference.py "$DATA/s04_homework_interference.csv" \
+  "$DATA/s04_interference.csv" --out "$OUT/s04_slo.png"
 python3 session04_scheduler/code/plot_timeline.py "$DATA/s04_timeline_chunk1024.json" \
   "$DATA/s04_timeline_chunk1024mx.json" --out "$OUT/s04_itl.png"
 python3 common/plot.py "$DATA/s05_onebatch.csv" --x batch_size --y median_decode_latency_ms,kv_share_pct \
   --group run_name --logx --out "$OUT/s05_graph.png"
+python3 docs/worked-results/project/analyze.py "$DATA/s06_project.csv" --figures "$OUT"
