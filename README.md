@@ -7,7 +7,7 @@
 | 항목 | 내용 |
 |---|---|
 | 대상 | SGLang을 처음 써보는 부트캠프 수강생 (Python, Linux 기초, Transformer 큰 그림 정도) |
-| 형식 | 6회 × 2시간 (지난 과제 발표 → 이론 → 실습 → 과제 안내) |
+| 형식 | 8주 과정. 수업 6회 × 2시간, 5–8주차는 최종 프로젝트 병행 |
 | 기준 버전 | **SGLang v0.5.23** (2026-10-28 릴리스) — 모든 코드 리딩 경로와 플래그가 이 버전 기준 |
 | 표준 모델 | `Qwen/Qwen3-1.7B` (BF16, GQA 16:8) — 필요 시 `Qwen/Qwen3-0.6B` |
 | 표준 GPU | RunPod **RTX 4090 24GB** (Community Cloud), CUDA 13 필터 필수 |
@@ -77,6 +77,12 @@ sessionNN_xxx/
 ├── assignment.md   # 과제 명세 + 채점 기준 + 다음 회차 발표 형식
 └── code/           # 실습/과제용 스크립트
 ```
+
+---
+
+## 최종 프로젝트 (5–8주차)
+
+공유 prefix, 채팅·문서 간섭, 배치 생성 중 배정된 workload의 SGLang 설정을 개선합니다. 4주차 말에 계획을 쓰고 8주차에 기준선·후보·stress 비교를 발표합니다. [프로젝트 과제](session06_benchmark_production/final_project.md) · [실행 코드와 예시](final_projects/README.md)
 
 ---
 

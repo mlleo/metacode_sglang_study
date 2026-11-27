@@ -21,7 +21,7 @@ import json
 import os
 import random
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import requests
 
@@ -77,8 +77,11 @@ def generate(
     url: str = DEFAULT_URL,
     timeout: float = 600.0,
     extra_sampling: Optional[Dict[str, Any]] = None,
+    on_first_token: Optional[Callable[[], None]] = None,
 ) -> Dict[str, Any]:
     """SGLang native `/generate`를 호출하고 지연시간 지표를 돌려준다.
+
+    on_first_token은 첫 토큰이 담긴 스트리밍 청크를 받았을 때 한 번 호출합니다.
 
     반환 dict:
         ttft            첫 token이 클라이언트에 도착할 때까지 (s). stream=False면 None
@@ -87,6 +90,7 @@ def generate(
         prompt_tokens / completion_tokens / cached_tokens   서버 meta_info 값
         text            생성된 텍스트 (누적)
         t_start         요청 시작 시각 (time.perf_counter 기준, 타임라인 그릴 때 사용)
+        stream_done     스트림에서 [DONE]을 받았는지 (stream=True일 때)
         token_times     청크가 도착한 시각들 (perf_counter 기준, stream=True일 때만). Session 4 ITL 타임라인용
     """
     body = _payload(prompt, input_ids, max_new_tokens, temperature, ignore_eos, stream, extra_sampling)
@@ -117,6 +121,7 @@ def generate(
     last_n = 0
     meta: Dict[str, Any] = {}
     text = ""
+    stream_done = False
     with requests.post(f"{url}/generate", json=body, stream=True, timeout=timeout) as r:
         r.raise_for_status()
         for raw in r.iter_lines():
@@ -127,6 +132,7 @@ def generate(
                 continue
             data = line[len("data:"):].strip()
             if data == "[DONE]":
+                stream_done = True
                 break
             chunk = json.loads(data)
             now = time.perf_counter()
@@ -139,6 +145,8 @@ def generate(
             token_times.append(now)
             if ttft is None:
                 ttft = now - t0
+                if on_first_token is not None:
+                    on_first_token()
                 # 첫 청크에 token이 여러 개 실려 오면 나머지는 ITL 0으로 취급하지 않고 버린다.
             else:
                 gap = (now - last_t) / new_tokens
@@ -155,6 +163,7 @@ def generate(
         "text": text,
         "t_start": t0,
         "token_times": token_times,
+        "stream_done": stream_done,
     }
 
 

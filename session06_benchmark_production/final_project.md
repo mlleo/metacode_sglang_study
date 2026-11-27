@@ -1,74 +1,53 @@
-# 최종 프로젝트 — 하나의 inference 질문에 측정으로 답하기
+# 최종 프로젝트 — SGLang 최적화 POC
 
-> 기간: Session 6 이후 2주 (강사가 공지) · GPU 예산 **$4.0** (+ 남은 예비비)
-> 제출: `submissions/final/<github-id>/` PR · 발표: 7분 + 질의 3분 (데모데이 또는 온라인 — 강사 공지)
+8주 과정의 마지막 발표입니다. 1주차에 프로젝트를 소개하고, 4주차 수업이 끝날 때 workload와 목표를 정합니다. **5–8주차에 프로젝트를 진행**합니다. 실습·과제와 별도로 주당 3–4시간을 잡으세요. GPU는 개인 RunPod 계정에서 사용하며 프로젝트 배정은 **$4 계획 기준**입니다. 실험 전 강사가 공지한 한도와 본인 잔액을 확인하세요.
 
-## 원칙
+작동하는 기준 서버와 재현 가능한 부하를 받은 뒤, **어떤 설정을 실제로 채택할지** 판단하는 프로젝트입니다. 제안하는 설정과 `run.sh`를 다른 사람이 실행할 수 있으면 POC로 충분합니다.
 
-- 거대한 서비스를 만드는 것이 아닙니다. **작고 명확한 시스템 질문 하나**를 고릅니다.
-- 좋은 질문: "공유 prefix 비율이 몇 %부터 radix cache가 throughput을 2배 이상 올리는가?"
-- 너무 큰 질문: "SGLang으로 production 챗봇을 만든다."
-- 한 가지 기준 설정과 두세 개 비교점이면 충분합니다. Session 6 §1에 따라 결과를 다시 측정하고 불확실성을 함께 설명하세요. 수업 결과는 같은 환경과 workload일 때 기준선 후보로 쓸 수 있습니다.
+## 배정할 workload
 
-## 주제 예시 (골라도 되고, 변형해도 되고, 새로 제안해도 됩니다)
+| 트랙 | 질문 | 사용할 도구 |
+|---|---|---|
+| `prefix` · 공유 프롬프트 상담 서비스 | 입력 부하를 고정한 상태에서 첫 토큰을 더 빨리 보낼 수 있나? | Session 2 지연 집계, Session 3 prefix cache와 스케줄링 |
+| `mixed` · 채팅 중 긴 문서 요청 | 채팅의 출력이 오래 멈추지 않으면서 문서 요청의 첫 토큰을 빠르게 보낼 수 있나? | Session 4 간섭 실험과 타임라인 |
+| `batch` · 출력 생성 배치 | 전체 배치가 마감 안에 끝나면서 초당 더 많은 토큰을 생성할 수 있나? | Session 2 continuous batching, Session 5 decode graph, Session 6 반복 측정 |
 
-| | 주제 | 질문 | 출발점 |
-|---|---|---|---|
-| A | Radix Cache Explorer | 동시성과 메모리를 고정하면 공유 비율에 따라 cache 이득이 어떻게 변하나? | S3 과제 Part B |
-| B | Capacity Planner | 입력/출력 길이 분포(예: ShareGPT 실제 분포 `--dataset-name sharegpt`)에서 SLO 만족 capacity는? random-ids 결과와 얼마나 다른가? | S2 과제 |
-| C | Long-Prompt Interference | chunk 크기·mixed chunk·`max-prefill-tokens` 조합으로 TTFT/ITL Pareto front 그리기 | S4 과제 |
-| D | Optimization Ablation | Session 5의 비교를 다른 입력 길이 하나에서 재현하면 효과가 유지되나? | S5 과제 |
-| E | Cost-aware Configuration | 4090 vs L4 vs (선택) A40/L40S에서 SLO 만족 $/1M tokens 비교. 비싼 GPU가 더 쌀 수 있는가? | S6 §4 |
-| F | Scheduler Hack | SGLang 소스를 고쳐(예: retraction 정렬 키, LPM 임계값 128, eviction 정책) 전후 비교. editable 설치 필요 | S4 코드 리딩 |
-| G | SGLang vs 다른 엔진 | 같은 GPU·모델·workload에서 vLLM과 비교. 순위가 아니라 **workload에 따라 왜 달라지는가** | S1–S5 전부 |
-| H | Speculative decoding 심화 | NGRAM vs EAGLE3(공개 draft가 있는 모델로) — accept length와 동시성의 관계 | S5 |
-| I | Structured output 비용 | JSON schema 제약 생성이 throughput/ITL에 주는 비용은? 같은 입력에서 간단한 스키마와 복잡한 스키마의 차이는? | S6 §5 |
+선호 순위를 받아 배정합니다. 같은 트랙에 지원이 몰리면 추첨합니다. 한 트랙에는 여러 사람이 배정되며, 같은 트랙에서도 비교할 설정과 해석은 달라질 수 있습니다.
 
-> F, G는 설치·환경 문제로 시간이 더 듭니다. 강사와 먼저 상의하세요.
+## 일정
 
-## 제출 구조
+| 주차 | 할 일 | 남길 것 |
+|---|---|---|
+| 1–4 | 소개, workload 배정, 가설 정리 | 4주차 말 트랙, 바꿀 설정, 예상 수치, 성공 기준 |
+| 5 | 로컬 mock으로 실행 확인, GPU에서 기준선 재현 | 한 번의 짧은 GPU 리허설, 정상적인 요청 수, 조사할 로그나 trace |
+| 6 | 기준선과 두 후보를 짧게 비교 | 비교표, 변경한 플래그, 본 실험에 가져갈 후보와 이유 |
+| 7 | 기준선과 후보를 같은 seed로 3회 비교, stress profile로 다시 확인 | 원시 결과, 짝별 차이와 95% 구간, 목표 통과 여부 |
+| 8 | 설정을 고르고 발표 | 재현 명령, 핵심 그래프, 근거, 한계, GPU 사용 기록 |
 
-```text
-submissions/final/<github-id>/
-├── README.md         # 아래 8단 구조
-├── run.sh            # 모든 실험을 처음부터 재현하는 명령 (서버 launch 포함)
-├── code/             # 직접 쓴 스크립트
-├── results/          # 원시 CSV/JSONL (+ 서버 로그 요약)
-└── figures/          # 그래프
-```
+수업에서 쓰던 도구를 그대로 사용합니다. 숫자 하나라도 조건이 애매하면 기록을 찾아 확인한 뒤 결론을 씁니다. 반복해도 차이가 분명하지 않거나 후보가 목표를 어기면, 기준선을 유지한다는 판단도 좋은 결론입니다.
 
-`README.md` 8단 구조:
+## 제출과 발표
 
-1. **Question** — 한 문장
-2. **Hypothesis** — 숫자로. 어떤 이론(회차/절)에 근거했는가
-3. **Setup** — 환경(`env.txt`), 서버 인자 전체, workload, 부하 모델, 반복 횟수
-4. **Baseline** — 비교 기준
-5. **Change** — 바꾼 것 (하나의 축, 또는 명시적인 2축 grid)
-6. **Result** — 그래프 2–3개, 표 (비교 결과와 95% CI. 같은 seed로 짝지었다면 쌍별 차이의 구간)
-7. **Explanation** — 왜? 로그/metrics/profile 근거 하나 이상
-8. **Limitations & Next** — 말할 수 없는 것, GPU 30분이 더 있다면 할 실험
+`submissions/final/<github-id>/`에 제출합니다. [제출 템플릿](../final_projects/submission_template.md)을 복사하고, 아래 파일을 포함하세요.
 
-## 발표 (7분)
+- `README.md` · 질문, 가설, 조건, 후보, 결과, 기술 근거, 한계, GPU 비용.
+- `run.sh` · 기준선과 최종 후보를 한 번에 재현하는 명령. [시작 스크립트](../final_projects/submission_run.sh)의 트랙·후보를 바꿉니다. 커스텀 설정을 사용하면 해당 JSON도 포함합니다.
+- `results/` · `manifest.json`, `runs.csv`, 요청별 원시 결과, 근거로 사용한 로그 발췌.
+- `figures/` · 발표의 핵심 그래프 한 장과 stress 비교 자료. 큰 trace는 수업에서 정한 별도 저장 위치에 올립니다.
 
-Problem → Hypothesis → Experiment → Result (그래프 1장) → Why → What I would test next.
-[templates/presentation_template.md](../templates/presentation_template.md)의 질의 가이드로 서로 질문합니다.
+발표는 7분, 질문은 3분입니다. **무슨 설정을 실제로 배포할지**, 그래프의 어느 점을 보고 결정했는지, 로그나 trace의 어느 줄이 설명을 뒷받침하는지를 말하세요. 질문에서 한도나 workload 조건 하나가 바뀔 수 있습니다. 이미 얻은 데이터로 어디까지 답할 수 있는지 설명하세요.
 
-## 채점 기준 (20점)
+## 채점 (20점)
 
-| 항목 | 점수 | 기준 |
+| 항목 | 점수 | 확인할 것 |
 |---|---:|---|
-| 질문의 명확성 | 3 | 한 문장, 측정 가능, 범위가 적절 |
-| 실험 설계 | 4 | 체크리스트 전부, 변수 통제, 반복·CI |
-| 재현성 | 3 | `run.sh` 하나로 재실행 가능, 원시 데이터 포함 |
-| 결과와 해석 | 6 | 이론과 연결, 근거(로그/profile), 예측과의 차이 설명 |
-| 한계 인식 | 2 | 일반화할 수 없는 부분을 정확히 |
-| 비용 관리 | 2 | GPU 기록, 예산 준수, 작은 리허설 → 본 실험 순서 |
+| 질문과 가설 | 3 | 기준선, 방향과 예상 수치가 분명함 |
+| 실험 설계 | 4 | 조건 통제, 동일 요청 짝, 반복, 고정한 성공 기준 |
+| 재현성 | 3 | `run.sh`, manifest, 원시 자료, 실패 실행 구분 |
+| 결과와 근거 | 6 | 목표를 적용해 후보를 고르고 CSV·로그·trace로 설명 |
+| 한계와 stress 분석 | 2 | 조건 하나를 바꿨을 때 판단과 근거가 어떻게 달라졌는지 설명 |
+| GPU 사용 기록 | 2 | 파일 보관, 사용 시간·실제 비용, 예산 안에서 실행 |
 
-## 일정 제안
+AI로 코드나 그래프를 만들고 문장을 다듬어도 됩니다. 제출할 설정과 수치는 직접 실행해 확인하고, 발표에서 본인의 결과 한 점과 관련 근거를 직접 설명하세요.
 
-| 시점 | 할 일 |
-|---|---|
-| Session 6 직후 | 주제 확정 → 이슈로 등록 (`[Final] <이름>: <질문>`) → 강사 피드백 |
-| +3일 | 작은 설정으로 파이프라인 완성 (GPU $0.5 이내) |
-| +10일 | 본 실험 + 반복 |
-| +14일 | README + 발표 |
+[실행 가이드와 소스](../final_projects/README.md) · [트랙별 분석 예시](../final_projects/examples/README.md) · [강사 운영과 리허설](../final_projects/instructor.md)

@@ -115,8 +115,14 @@ python3 session06_benchmark_production/code/cost_calc.py results/s02_base.csv --
 
 ## 5. 최종 프로젝트 리허설 (15분)
 
-[final_project.md](final_project.md)에서 주제를 고르고, **가장 작은 설정**(요청 수 ¼, sweep 점 2개)으로 스크립트가 끝까지 도는지만 확인합니다.
-본 실험은 집에서 — 예산 $4.0 이내로.
+배정된 프로젝트 트랙을 [실행 가이드](../final_projects/README.md)의 `pilot` profile로 실행합니다. 아래의 `mixed`는 본인 트랙으로 바꿉니다. 서버가 닫히고 원시 결과까지 생기는지 확인하세요.
+
+```bash
+python3 final_projects/run.py mixed --profiles pilot --out results/final/lab6-mixed
+python3 final_projects/analyze.py results/final/lab6-mixed
+```
+
+별도 프로젝트 본 실험은 [5–8주차 일정](final_project.md)을 따릅니다.
 
 ## 6. 정리 & Terminate
 

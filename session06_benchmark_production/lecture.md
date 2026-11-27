@@ -258,7 +258,7 @@ SLO(p95 TTFT ≤ 500 ms) 때문에 동시성 16까지만 쓸 수 있고 그때 4
 ### 4.2 교훈
 
 - **가장 빠른 설정 ≠ 가장 싼 설정 ≠ SLO를 지키는 가장 싼 설정.** 셋을 따로 계산합니다.
-- **비싼 GPU가 더 쌀 수 있습니다.** H100이 4090보다 시간당 몇 배 비싸도 throughput이 그 이상이면 token당 비용은 낮아집니다. 특히 메모리가 커서 batch를 크게 키울 수 있으면. (최종 프로젝트 E 주제)
+- **비싼 GPU가 더 쌀 수 있습니다.** H100이 4090보다 시간당 몇 배 비싸도 throughput이 그 이상이면 token당 비용은 낮아집니다. 특히 메모리가 커서 batch를 크게 키울 수 있으면.
 - 여기서 30%는 예시 처리량으로 서비스가 동작한 시간 비율입니다. `nvidia-smi`의 GPU utilization이나 trace의 GPU busy %는 이 계산에 그대로 넣을 수 없습니다. 트래픽이 출렁이는 서비스에서는 autoscaling, 여러 모델의 GPU 공유, 배치 작업으로 빈 시간 채우기가 커널 최적화보다 큰 효과를 내기도 합니다.
 - 이 스터디에서 쓴 최적화 대부분(batching, prefix cache, 양자화, CUDA graph)은 결국 **같은 GPU-시간에 더 많은 token**, 즉 비용 최적화였습니다.
 
@@ -289,7 +289,7 @@ GPU 한 장, 작은 모델로 배운 개념들이 큰 시스템에서 어떻게 
 | **HiCache** | GPU KV pool이 작음 (S3) | radix tree를 GPU → CPU 메모리 → 디스크/원격 저장소로 계층화 | `--enable-hierarchical-cache` |
 | **Structured output** | JSON 등 형식 강제 | sampling 단계에서 문법에 맞지 않는 token을 mask | `json_schema`, `regex`, xgrammar |
 | **Multi-LoRA** | 어댑터 여러 개 동시 서빙 | 같은 base weight 공유, radix cache는 어댑터별 네임스페이스 (S3 §7) | `--lora-paths` |
-| **다른 엔진** | — | vLLM, TensorRT-LLM, LMDeploy … 질문은 같고 선택이 다름 | 최종 프로젝트 G 주제 |
+| **다른 엔진** | — | vLLM, TensorRT-LLM, LMDeploy … 질문은 같고 선택이 다름 | 엔진 비교 확장 실험 |
 
 ### 5.2 Tensor Parallel의 산수 (📖)
 
@@ -350,8 +350,7 @@ GPU KV pool에서 밀려난 prefix를 CPU 메모리(L2)나 디스크/원격(L3)�
 
 ## 6. ★ 최종 프로젝트 안내
 
-[final_project.md](final_project.md) — 작고 명확한 시스템 질문 하나를 골라 **§1.5의 체크리스트대로** 답합니다.
-Session 5의 Optimization Note를 확장해도 좋습니다.
+[최종 프로젝트](final_project.md)의 세 workload 중 배정된 트랙에서 **§1.5의 체크리스트대로** 설정을 비교합니다. Session 5에서 쓴 가설·설정·결과·근거·한계 형식을 그대로 사용하세요. [실행 코드와 분석 예시](../final_projects/README.md)
 
 ---
 
