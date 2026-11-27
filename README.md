@@ -140,6 +140,7 @@ bash common/stop.sh
 - [docs/runpod_guide.md](docs/runpod_guide.md) — GPU 선택, CUDA 13 필터, 템플릿, Stop vs Terminate, **$20 예산 배분**
 - [docs/code_map.md](docs/code_map.md) — SGLang v0.5.23 코드 리딩 지도 (회차별로 어떤 파일을 읽는지)
 - [docs/glossary.md](docs/glossary.md) — 용어집
+- [실습과 과제 예시 결과](docs/worked-results/README.md) — 어떤 지표·로그·trace로 결론을 냈는지 보여 주는 H100 리허설
 - [docs/instructor_guide.md](docs/instructor_guide.md) — 강사용: 사전 리허설, 발표 운영, 채점, 자주 막히는 지점
 - [submissions/README.md](submissions/README.md) — 과제 제출 방법 (fork → PR)
 

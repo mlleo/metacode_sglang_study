@@ -1,0 +1,7 @@
+input_len,ms,scope
+128,18.57,HF prefill forward
+512,14.53,HF prefill forward
+2048,22.82,HF prefill forward
+128,7.5669,SGLang client TTFT
+512,7.5934,SGLang client TTFT
+2048,14.5707,SGLang client TTFT

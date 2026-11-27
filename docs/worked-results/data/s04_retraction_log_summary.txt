@@ -1,0 +1,27 @@
+
+eos
+prefill_batches                     10
+sum_new_token                    22737
+queue_req_max                      100
+running_req_max                     53
+token_usage_max                  1.000
+retract_events                      25
+retracted_reqs                      25
+
+eos_cons2
+prefill_batches                     18
+sum_new_token                    22631
+queue_req_max                      100
+running_req_max                     51
+token_usage_max                  1.000
+retract_events                      24
+retracted_reqs                      24
+
+fixed
+prefill_batches                      8
+sum_new_token                     3843
+queue_req_max                      100
+running_req_max                     28
+token_usage_max                  0.980
+retract_events                       0
+retracted_reqs                       0

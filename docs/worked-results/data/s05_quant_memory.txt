@@ -1,0 +1,9 @@
+== bf16 ==
+Load weight end. elapsed=0.67 s, type=Qwen3ForCausalLM, avail mem=75.22 GB, mem usage=3.28 GB.
+KV Cache is allocated. dtype: torch.bfloat16, #tokens: 579196, K size: 30.93 GB, V size: 30.93 GB
+== fp8w ==
+Load weight end. elapsed=5.80 s, type=Qwen3ForCausalLM, avail mem=76.59 GB, mem usage=1.92 GB.
+KV Cache is allocated. dtype: torch.bfloat16, #tokens: 591941, K size: 31.61 GB, V size: 31.61 GB
+== fp8kv ==
+Load weight end. elapsed=0.67 s, type=Qwen3ForCausalLM, avail mem=75.22 GB, mem usage=3.28 GB.
+KV Cache is allocated. dtype: torch.float8_e4m3fn, #tokens: 1158393, K size: 30.93 GB, V size: 30.93 GB
